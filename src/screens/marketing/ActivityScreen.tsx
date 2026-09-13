@@ -1,0 +1,81 @@
+import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { backendApi } from '@/integration/backendapi';
+import { useAsync } from '@/hooks/useAsync';
+import { AgentAction, GuardDecision } from '@/model/marketing';
+import { Badge, Button, Card, Code, Empty, ErrorNote, PageHeader, Spinner, Stat, Table } from '@/components/ui';
+import { formatDateTime, formatRelative, labelFor, prettyJson } from '@/lib/format';
+
+const DAY = 86_400_000;
+
+export function ActivityScreen() {
+  const actions = useAsync(() => backendApi.actions(), []);
+  const [selected, setSelected] = useState<AgentAction | null>(null);
+
+  const all = [...(actions.data ?? [])].sort((a, b) => b.createdAtMillis - a.createdAtMillis);
+  const recent = all.filter((a) => a.createdAtMillis >= Date.now() - DAY);
+  const tokens = recent.reduce((sum, a) => sum + (a.promptTokens ?? 0) + (a.completionTokens ?? 0), 0);
+  const failed = recent.filter((a) => a.executionStatus === 'FAILED').length;
+  const blocked = recent.filter((a) => a.guardDecision === 'BLOCKED_BY_POLICY').length;
+
+  return (
+    <>
+      <PageHeader
+        title="Agent Activity"
+        subtitle="Audit log of everything the agent proposed, how the guard ruled, and what was executed"
+        actions={<Button variant="secondary" onClick={actions.reload}><RefreshCw className="h-4 w-4" /> Refresh</Button>}
+      />
+      <ErrorNote message={actions.error} />
+      <div className="mb-6 grid gap-4 md:grid-cols-4">
+        <Stat label="Actions (24h)" value={recent.length} />
+        <Stat label="Tokens (24h)" value={tokens.toLocaleString()} />
+        <Stat label="Failed (24h)" value={failed} tone={failed ? 'bad' : 'default'} />
+        <Stat label="Blocked by policy (24h)" value={blocked} tone={blocked ? 'warn' : 'default'} />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+        <Card title={`${all.length} actions`}>
+          {actions.loading && !actions.data ? <Spinner /> : all.length === 0 ? <Empty>No agent activity recorded yet.</Empty> : (
+            <Table head={<><th>When</th><th>Type</th><th>Guard</th><th>Execution</th><th>Tokens</th></>}>
+              {all.slice(0, 200).map((a) => (
+                <tr key={a.actionId} className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 ${selected?.actionId === a.actionId ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} onClick={() => setSelected(a)}>
+                  <td className="whitespace-nowrap" title={formatDateTime(a.createdAtMillis)}>{formatRelative(a.createdAtMillis)}</td>
+                  <td>{labelFor(a.actionType)}</td>
+                  <td><Badge tone={guardTone(a.guardDecision)}>{a.guardDecision}</Badge></td>
+                  <td><Badge tone={a.executionStatus === 'FAILED' ? 'bad' : a.executionStatus === 'EXECUTED' ? 'good' : 'default'}>{a.executionStatus}</Badge></td>
+                  <td>{a.promptTokens || a.completionTokens ? ((a.promptTokens ?? 0) + (a.completionTokens ?? 0)).toLocaleString() : '—'}</td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+        <Card title="Detail">
+          {!selected ? <Empty>Select an action.</Empty> : (
+            <div className="space-y-3 text-sm">
+              <dl className="grid grid-cols-[8rem_1fr] gap-y-1">
+                <dt className="text-slate-500">Action</dt><dd className="font-mono text-xs">{selected.actionId}</dd>
+                <dt className="text-slate-500">Type</dt><dd>{labelFor(selected.actionType)}</dd>
+                <dt className="text-slate-500">Target</dt><dd className="font-mono text-xs">{selected.targetEntityType} {selected.targetEntityId}</dd>
+                <dt className="text-slate-500">Guard</dt><dd>{selected.guardDecision}{selected.guardReason ? ` — ${selected.guardReason}` : ''}</dd>
+                <dt className="text-slate-500">Reviewed</dt><dd>{selected.reviewedBy ? `${selected.reviewedBy} · ${formatDateTime(selected.reviewedAtMillis)}` : '—'}</dd>
+                <dt className="text-slate-500">Executed</dt><dd>{selected.executionStatus}{selected.executedAtMillis ? ` · ${formatDateTime(selected.executedAtMillis)}` : ''}</dd>
+                {selected.failureReason && <><dt className="text-slate-500">Failure</dt><dd className="text-red-600">{selected.failureReason}</dd></>}
+                <dt className="text-slate-500">Model</dt><dd>{selected.modelUsed ?? '—'} {selected.promptTokens != null && <span className="text-slate-500">({selected.promptTokens} in / {selected.completionTokens} out)</span>}</dd>
+              </dl>
+              {selected.rationale && <p><span className="font-medium">Rationale: </span>{selected.rationale}</p>}
+              {selected.proposedPayload && <Code>{prettyJson(selected.proposedPayload)}</Code>}
+            </div>
+          )}
+        </Card>
+      </div>
+    </>
+  );
+}
+
+function guardTone(d: GuardDecision): 'default' | 'good' | 'warn' | 'bad' | 'info' {
+  switch (d) {
+    case 'APPROVED': case 'AUTO_APPROVED': return 'good';
+    case 'PENDING_REVIEW': return 'warn';
+    case 'REJECTED': case 'BLOCKED_BY_POLICY': return 'bad';
+    default: return 'default';
+  }
+}

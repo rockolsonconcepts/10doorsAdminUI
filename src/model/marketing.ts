@@ -1,0 +1,113 @@
+export type GuardDecision = 'PENDING_REVIEW' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED' | 'BLOCKED_BY_POLICY';
+export type ExecutionStatus = 'NOT_EXECUTED' | 'EXECUTED' | 'FAILED' | 'SKIPPED';
+export type PublicationStatus = 'PENDING' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'CANCELLED' | 'REMOVED';
+
+export interface AgentAction {
+  actionId: string;
+  clientId: string;
+  actionType: string;
+  targetEntityType: string | null;
+  targetEntityId: string | null;
+  campaignId: string | null;
+  proposedPayload: string | null;
+  rationale: string | null;
+  guardDecision: GuardDecision;
+  guardReason: string | null;
+  reviewedBy: string | null;
+  reviewedAtMillis: number;
+  executionStatus: ExecutionStatus;
+  executedAtMillis: number;
+  failureReason: string | null;
+  modelUsed: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  createdAtMillis: number;
+  updatedAtMillis: number;
+}
+
+export interface Publication {
+  publicationId: string;
+  contentAssetId: string | null;
+  channelId: string | null;
+  campaignId: string | null;
+  attributionLinkId: string | null;
+  targetLocation: string | null;
+  externalPostId: string | null;
+  externalUrl: string | null;
+  scheduledAtMillis: number;
+  publishedAtMillis: number;
+  publicationStatus: PublicationStatus;
+  failureReason: string | null;
+  createdAtMillis: number;
+}
+
+export interface ContentAsset {
+  contentAssetId: string;
+  contentIdeaId: string | null;
+  contentType: string;
+  targetChannelType: string | null;
+  title: string | null;
+  body: string | null;
+  hook: string | null;
+  topic: string | null;
+  callToAction: string | null;
+  contentStatus: string;
+  createdAtMillis: number;
+}
+
+export interface MarketingObjective {
+  objectiveId: string;
+  name: string;
+  description: string | null;
+  type: string;
+  targetValue: number | null;
+  baselineValue: number | null;
+  currentValue: number | null;
+  status: string;
+}
+
+export interface AudienceSegment {
+  audienceSegmentId: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+}
+
+export interface Channel {
+  channelId: string;
+  channelType: string;
+  name: string;
+  handle: string | null;
+  enabled: boolean;
+  maxPostsPerDay: number;
+}
+
+export interface StrategyRule {
+  ruleId: string;
+  name: string;
+  ruleType: string;
+  condition: string | null;
+  action: string | null;
+  priority: number | null;
+  source: string;
+  ruleStatus: string;
+}
+
+export interface MarketingInsight {
+  marketingInsightId: string;
+  insightType: string;
+  statement: string;
+  confidence: number | null;
+  sampleSize: number;
+  source: string;
+  active: boolean;
+  discoveredAtMillis: number;
+}
+
+export interface Campaign {
+  campaignId: string;
+  name: string;
+  campaignStatus: string;
+  objectiveId: string | null;
+  hypothesis: string | null;
+}

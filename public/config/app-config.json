@@ -1,0 +1,8 @@
+{
+  "_comment": "Runtime config; overrides VITE_* build values. Replace at deploy time. Leave empty in dev so .env.development applies.",
+  "apiBaseUrl": "",
+  "clientId": "",
+  "clientSecret": "",
+  "apiKey": "",
+  "scope": ""
+}
