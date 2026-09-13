@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table } from '@/components/ui';
+import { Campaign } from '@/model/marketing';
+import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 
 export function ReferenceScreen() {
   const objectives = useAsync(() => backendApi.objectives(), []);
@@ -93,6 +95,9 @@ export function ReferenceScreen() {
             </Table>
           )}
         </Card>
+        <Card title="Tracked links (campaign / bio)">
+          {campaigns.loading ? <Spinner /> : !campaigns.data?.length ? <Empty>Create a campaign first.</Empty> : <CampaignLinks campaigns={campaigns.data} />}
+        </Card>
         <Card title="Insights">
           <ErrorNote message={insights.error} />
           {insights.loading ? <Spinner /> : !insights.data?.length ? <Empty>None yet — the weekly learn tick proposes insights once there is enough data.</Empty> : (
@@ -110,5 +115,61 @@ export function ReferenceScreen() {
         </Card>
       </div>
     </>
+  );
+}
+
+function CampaignLinks({ campaigns }: { campaigns: Campaign[] }) {
+  const [campaignId, setCampaignId] = useState(campaigns[0].campaignId);
+  const [vanity, setVanity] = useState('');
+  const [destination, setDestination] = useState('https://10doors.io');
+  const [source, setSource] = useState('instagram');
+  const [error, setError] = useState<string | null>(null);
+  const links = useAsync(() => backendApi.campaignLinks(campaignId), [campaignId]);
+
+  async function create() {
+    setError(null);
+    try {
+      await backendApi.createAttributionLink({
+        campaignId,
+        scope: 'CAMPAIGN',
+        vanityPath: vanity || null,
+        destinationUrl: destination,
+        utmSource: source,
+        utmMedium: 'bio',
+        utmCampaign: campaigns.find((c) => c.campaignId === campaignId)?.name ?? campaignId,
+      });
+      setVanity('');
+      links.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-xs text-slate-500">Reusable links for placements that cannot hold a per-post link (Instagram bio, link-in-bio, spoken or typed vanity URL). Per-post links are minted automatically when a publication is created.</p>
+      <select className={inputClass} value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
+        {campaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.name}</option>)}
+      </select>
+      <ErrorNote message={links.error} />
+      {links.loading ? <Spinner /> : !links.data?.length ? <Empty>No links for this campaign.</Empty> : (
+        <Table head={<><th>Tracked URL</th><th>Scope</th><th>Clicks</th></>}>
+          {links.data.map((l) => (
+            <tr key={l.attributionLinkId}>
+              <td className="font-mono text-xs"><a className="text-blue-600 hover:underline" href={l.trackedUrl} target="_blank" rel="noreferrer">{l.trackedUrl}</a></td>
+              <td><Badge tone={l.scope === 'CAMPAIGN' ? 'warn' : 'default'}>{l.scope ?? '—'}</Badge></td>
+              <td>{l.clickCount}</td>
+            </tr>
+          ))}
+        </Table>
+      )}
+      <div className="grid gap-2 sm:grid-cols-3">
+        <input className={inputClass} placeholder="Vanity path, e.g. latefees" value={vanity} onChange={(e) => setVanity(e.target.value)} />
+        <input className={inputClass} placeholder="utm_source" value={source} onChange={(e) => setSource(e.target.value)} />
+        <input className={inputClass} placeholder="Destination URL" value={destination} onChange={(e) => setDestination(e.target.value)} />
+      </div>
+      <ErrorNote message={error} />
+      <Button onClick={create} disabled={!destination}>Create campaign link</Button>
+    </div>
   );
 }
