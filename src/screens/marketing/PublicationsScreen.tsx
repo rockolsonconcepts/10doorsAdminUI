@@ -2,16 +2,19 @@ import { useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Publication, PublicationStatus } from '@/model/marketing';
+import { Channel, Publication, PublicationStatus } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
+import { TrackedLinkGuide } from './TrackedLinkGuide';
 
 const STATUSES: PublicationStatus[] = ['PENDING', 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED'];
 
 export function PublicationsScreen() {
   const [status, setStatus] = useState<PublicationStatus>('PENDING');
   const list = useAsync(() => backendApi.publications(status), [status]);
+  const channels = useAsync(() => backendApi.channels(), []);
   const [selected, setSelected] = useState<Publication | null>(null);
+  const channelFor = (channelId: string | null) => channels.data?.find((c) => c.channelId === channelId) ?? null;
 
   return (
     <>
@@ -34,7 +37,7 @@ export function PublicationsScreen() {
                 <tr key={p.publicationId} className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 ${selected?.publicationId === p.publicationId ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} onClick={() => setSelected(p)}>
                   <td>
                     <div>{p.targetLocation ?? '—'}</div>
-                    <div className="font-mono text-xs text-slate-500">{p.publicationId.slice(0, 8)}</div>
+                    <div className="text-xs text-slate-500">{channelFor(p.channelId)?.name ?? p.channelId?.slice(0, 8)} · <span className="font-mono">{p.publicationId.slice(0, 8)}</span></div>
                   </td>
                   <td><Badge tone={p.publicationStatus === 'PUBLISHED' ? 'good' : p.publicationStatus === 'FAILED' ? 'bad' : 'warn'}>{p.publicationStatus}</Badge></td>
                   <td className="whitespace-nowrap">{formatRelative(p.createdAtMillis)}</td>
@@ -45,14 +48,14 @@ export function PublicationsScreen() {
           )}
         </Card>
         <Card title="Post it">
-          {selected ? <PublicationDetail publication={selected} onSaved={() => { setSelected(null); list.reload(); }} /> : <Empty>Select a publication to see the content and record the result.</Empty>}
+          {selected ? <PublicationDetail publication={selected} channel={channelFor(selected.channelId)} onSaved={() => { setSelected(null); list.reload(); }} /> : <Empty>Select a publication to see the content and record the result.</Empty>}
         </Card>
       </div>
     </>
   );
 }
 
-function PublicationDetail({ publication, onSaved }: { publication: Publication; onSaved: () => void }) {
+function PublicationDetail({ publication, channel, onSaved }: { publication: Publication; channel: Channel | null; onSaved: () => void }) {
   const asset = useAsync(() => (publication.contentAssetId ? backendApi.asset(publication.contentAssetId) : Promise.resolve(null)), [publication.contentAssetId]);
   const [url, setUrl] = useState(publication.externalUrl ?? '');
   const [postId, setPostId] = useState(publication.externalPostId ?? '');
@@ -82,8 +85,7 @@ function PublicationDetail({ publication, onSaved }: { publication: Publication;
     <div className="space-y-4 text-sm">
       <dl className="grid grid-cols-[8rem_1fr] gap-y-1">
         <dt className="text-slate-500">Target</dt><dd>{publication.targetLocation ?? '—'}</dd>
-        <dt className="text-slate-500">Channel</dt><dd className="font-mono text-xs">{publication.channelId}</dd>
-        <dt className="text-slate-500">Tracked link</dt><dd className="font-mono text-xs">{publication.attributionLinkId ?? '—'}</dd>
+        <dt className="text-slate-500">Channel</dt><dd>{channel ? <>{channel.name} <Badge>{channel.channelType}</Badge></> : <span className="font-mono text-xs">{publication.channelId}</span>}</dd>
         {publication.failureReason && <><dt className="text-slate-500">Failure</dt><dd className="text-red-600">{publication.failureReason}</dd></>}
       </dl>
       {asset.loading ? <Spinner label="Loading content…" /> : asset.data && (
@@ -95,6 +97,7 @@ function PublicationDetail({ publication, onSaved }: { publication: Publication;
           <Button variant="secondary" className="mt-3" onClick={() => navigator.clipboard.writeText([asset.data?.title, asset.data?.body, asset.data?.callToAction].filter(Boolean).join('\n\n'))}>Copy text</Button>
         </div>
       )}
+      <TrackedLinkGuide publication={publication} channel={channel} />
       {publication.publicationStatus !== 'PUBLISHED' && (
         <div className="space-y-2">
           <div className="font-medium">Record result</div>
