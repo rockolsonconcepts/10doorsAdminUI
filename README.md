@@ -54,9 +54,28 @@ Publish (on approval)   guard checks -> ChannelAdapter -> Publication
 Learn   (Mon 07:00)     experiments/conversions -> MarketingInsight, StrategyRule -> queue
 ```
 
+### Getting started (first run)
+
+Do these once, in order, before enabling the agent. Skipping steps 2–4 produces generic
+"try our software" posts.
+
+1. **Turn it on** – set `marketing.agent.enabled=true` and `openai.api-key` on the backend (see
+   *Turning the agent on*). Overview shows the agent state and last tick.
+2. **Reference Data** – create objectives (what to grow), 2–3 audience segments with *real*
+   pain points in the audience's own words, one campaign with a hypothesis, and one channel row
+   per destination. Enable only the channels you will actually post to.
+3. **Content Charter** – write the voice and content principles, banned phrases, a good and a
+   bad example, and set the promotional share (default 20%) and product-mention cap.
+4. **Listening** – paste 5–10 real threads/questions you have seen the audience post. This is
+   the raw material for the first Plan; without it the model only has the segments to go on.
+5. Wait for the next Plan tick (06:00 by default) or watch **Agent Activity** for `PLAN`.
+   Ideas appear in the **Approval Queue**.
+
 ### Daily loop
 
-1. **Approval Queue** – review pending actions. Each card shows the action type
+1. **Listening** (2 minutes) – paste anything relevant you saw since yesterday; mark older
+   observations `REVIEWED` once you have read them so the brief stays focused.
+2. **Approval Queue** – review pending actions. Each card shows the action type
    (`CREATE_IDEA`, `CREATE_CONTENT`, `PUBLISH`, `CREATE_INSIGHT`, `CREATE_STRATEGY_RULE`, ...)
    and the proposed payload. For ideas and drafts the first field is the **intent**
    (`EDUCATE`, `STORY`, `DISCUSSION`, `ANSWER`, `PROMOTE`) so you can see what kind of piece it
@@ -65,17 +84,63 @@ Learn   (Mon 07:00)     experiments/conversions -> MarketingInsight, StrategyRul
    - Approving `CREATE_IDEA` triggers drafting on the next execute tick (every 5 min).
    - Approving `CREATE_CONTENT` proposes a `PUBLISH` action.
    - Approving `PUBLISH` runs the guards and hands the post to the channel adapter.
-2. **Publications** – with the manual adapter (the only one today) an approved publication
+3. **Publications** – with the manual adapter (the only one today) an approved publication
    lands here as `SCHEDULED`. Select it, copy the drafted title/hook/body/CTA, and follow the
    **How to use this link** panel: it shows the full tracked URL (`…/go/{code}`) and
    channel-specific placement instructions (Reddit/Threads: link in the post; Instagram feed:
    link-in-bio + "link in bio" in the caption; Instagram story: link sticker). Post it yourself,
    then **Record result** with the live URL / external id and status `PUBLISHED` (or `FAILED`
    with a reason). Recording the result is what lets engagement and conversions be attributed.
-3. **Agent Activity** – audit log of every tick and action, including LLM-free ones, with
+4. **Agent Activity** – audit log of every tick and action, including LLM-free ones, with
    model, tokens, guard decisions and failure reasons. Check it when the queue is unexpectedly
    empty ("why did it do nothing" is logged too) and to watch token spend against
    `marketing.agent.daily-token-budget`.
+
+### Weekly
+
+- Monday's Learn tick proposes `CREATE_INSIGHT` / `CREATE_STRATEGY_RULE` actions once a
+  campaign has enough data (`min-sample-size`). Approve the ones you believe; they are read
+  by every later Plan.
+- Skim **Reference Data → Insights / Strategy rules** and retire anything stale.
+- If you rejected several drafts for the same reason, encode it in the **Content Charter**
+  (banned phrase, principle, or a lower promotional share) rather than rejecting again.
+
+### Listening
+
+Where the agent learns what the audience is actually saying. Every `NEW` observation is
+included verbatim (channel, location, title, snippet, topic, sentiment) in the next daily Plan
+brief, so the ideas the model proposes answer real questions instead of imagined ones.
+
+**Adding an observation**
+
+1. Pick a configured **Channel**, or leave it empty and choose a **Channel type** (e.g. `REDDIT`
+   before you have a Reddit channel row).
+2. **Location** – where you saw it: `r/Landlord`, `#landlordlife`, a Facebook group name.
+3. **Source URL** – the thread or post link. It also acts as the dedupe key: pasting the same
+   URL twice returns the existing observation instead of creating another.
+4. **Title** – the post title if there is one.
+5. **Snippet** (required) – the part that matters, in the author's own words. Keep the
+   frustration and the specifics ("third month of Zelle in three chunks"); that is what makes
+   the resulting content relatable. Do not paste personal data beyond what is public.
+6. **Author**, **Sentiment**, optional **Topic** – topic is free text (`late rent`,
+   `security deposit`); use consistent labels so Learn can group them later.
+
+Channel, type and location are kept after saving so a batch from one subreddit is quick.
+
+**Working the list** – the filter defaults to `NEW`. After a Plan tick has consumed an
+observation (or you have read it) mark it **Reviewed**; use **Ignore** for noise. Both remove it
+from future briefs; **Restore** on an ignored row puts it back to `NEW`. `ACTIONED` is reserved
+for observations that led to a content idea (set via the API today; the UI will do it once the
+planner links ideas back to observations).
+
+**What goes in** – questions, complaints, "how do you handle X" threads, comments on competitor
+posts, support emails you have permission to use. **What does not** – anything you would not
+want quoted back in a brief; observations are prompt context only and are never used to train a
+model.
+
+Reddit must be fed this way: its Developer Terms treat use by a business as commercial and
+prohibit automated posting, so there is no Reddit API integration. Threads and Instagram
+observers can populate the same list automatically once those adapters exist.
 
 ### Tracked links and attribution
 
