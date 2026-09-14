@@ -11,6 +11,7 @@ import { ApprovalQueueScreen } from '@/screens/marketing/ApprovalQueueScreen';
 import { PublicationsScreen } from '@/screens/marketing/PublicationsScreen';
 import { ActivityScreen } from '@/screens/marketing/ActivityScreen';
 import { ReferenceScreen } from '@/screens/marketing/ReferenceScreen';
+import { CharterScreen } from '@/screens/marketing/CharterScreen';
 
 function Gate() {
   const { state } = useAuth();
@@ -26,6 +27,7 @@ function Gate() {
         <Route path="marketing/publications" element={<PublicationsScreen />} />
         <Route path="marketing/activity" element={<ActivityScreen />} />
         <Route path="marketing/reference" element={<ReferenceScreen />} />
+        <Route path="marketing/charter" element={<CharterScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

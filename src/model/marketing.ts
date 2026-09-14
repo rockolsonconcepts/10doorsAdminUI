@@ -55,6 +55,23 @@ export interface ContentAsset {
   createdAtMillis: number;
 }
 
+export interface ContentCharter {
+  contentCharterId: string | null;
+  clientId: string | null;
+  productName: string | null;
+  voice: string | null;
+  audienceTruths: string | null;
+  contentPrinciples: string | null;
+  productMentionGuidance: string | null;
+  bannedPhrases: string | null;
+  goodExample: string | null;
+  badExample: string | null;
+  maxPromotionalShare: number | null;
+  maxProductMentions: number;
+  createdAtMillis: number;
+  updatedAtMillis: number;
+}
+
 export interface MarketingObjective {
   objectiveId: string;
   name: string;
