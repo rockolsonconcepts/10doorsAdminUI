@@ -77,6 +77,14 @@ Learn   (Mon 07:00)     experiments/conversions -> MarketingInsight, StrategyRul
    empty ("why did it do nothing" is logged too) and to watch token spend against
    `marketing.agent.daily-token-budget`.
 
+### Listening
+
+Where the agent learns what the audience is saying. Paste a post, question or comment you saw
+(channel, location such as `r/Landlord`, source URL, snippet in the author's words). `NEW`
+observations are included in the next daily Plan brief; mark them `REVIEWED` once read or
+`IGNORED` to drop them. Reddit must be fed this way — its API terms prohibit business use — while
+Threads/Instagram observers can populate it automatically once those adapters exist.
+
 ### Tracked links and attribution
 
 Every publication gets its own `AttributionLink`; the tracked URL is

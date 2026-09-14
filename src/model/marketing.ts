@@ -99,6 +99,30 @@ export interface Channel {
   maxPostsPerDay: number;
 }
 
+export type ObservationStatus = 'NEW' | 'REVIEWED' | 'ACTIONED' | 'IGNORED';
+export type Sentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'MIXED';
+
+export interface ListeningObservation {
+  observationId: string;
+  channelId: string | null;
+  channelType: string | null;
+  externalId: string | null;
+  externalUrl: string | null;
+  location: string | null;
+  author: string | null;
+  title: string | null;
+  snippet: string | null;
+  summary: string | null;
+  detectedTopic: string | null;
+  sentiment: Sentiment | null;
+  matchedSegmentId: string | null;
+  ledToContentIdeaId: string | null;
+  observationStatus: ObservationStatus;
+  publishedAtMillis: number;
+  observedAtMillis: number;
+  createdAtMillis: number;
+}
+
 export type AttributionScope = 'PUBLICATION' | 'CAMPAIGN';
 
 export interface AttributionLink {

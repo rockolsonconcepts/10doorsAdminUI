@@ -7,8 +7,8 @@ import {
   PagedResponse, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
-  AgentAction, AttributionLink, AudienceSegment, Campaign, Channel, ContentAsset, ContentCharter, MarketingInsight,
-  MarketingObjective, Publication, PublicationStatus, StrategyRule,
+  AgentAction, AttributionLink, AudienceSegment, Campaign, Channel, ContentAsset, ContentCharter, ListeningObservation,
+  MarketingInsight, MarketingObjective, ObservationStatus, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
 
 export interface ApiError {
@@ -200,6 +200,11 @@ class BackendApi {
     this.put<MarketingInsight>(`/v1/marketing/insights/${insightId}/active`, undefined, { active });
   createChannel = (channel: Partial<Channel>) => this.post<Channel>('/v1/marketing/channels', channel);
   updateChannel = (channelId: string, channel: Partial<Channel>) => this.put<Channel>(`/v1/marketing/channels/${channelId}`, channel);
+  observations = (status?: ObservationStatus) => this.get<ListeningObservation[]>('/v1/marketing/observations', status ? { status } : undefined);
+  recordObservation = (observation: Partial<ListeningObservation>) =>
+    this.post<ListeningObservation>('/v1/marketing/observations', observation);
+  setObservationStatus = (observationId: string, status: ObservationStatus) =>
+    this.put<ListeningObservation>(`/v1/marketing/observations/${observationId}/status`, { status });
   charter = () => this.get<ContentCharter>('/v1/marketing/charter');
   saveCharter = (charter: Partial<ContentCharter>) => this.put<ContentCharter>('/v1/marketing/charter', charter);
 }
