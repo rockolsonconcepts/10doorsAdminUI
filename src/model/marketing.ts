@@ -99,6 +99,26 @@ export interface Channel {
   maxPostsPerDay: number;
 }
 
+export type AttributionScope = 'PUBLICATION' | 'CAMPAIGN';
+
+export interface AttributionLink {
+  attributionLinkId: string;
+  code: string;
+  scope: AttributionScope | null;
+  vanityPath: string | null;
+  trackedUrl: string;
+  campaignId: string | null;
+  publicationId: string | null;
+  channelId: string | null;
+  destinationUrl: string;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  clickCount: number;
+  active: boolean;
+}
+
 export interface StrategyRule {
   ruleId: string;
   name: string;
