@@ -75,7 +75,7 @@ export function ApprovalQueueScreen() {
 function ProposedPayload({ action }: { action: AgentAction }) {
   const parsed = safeParse(action.proposedPayload);
   if (!parsed) return action.proposedPayload ? <Code>{action.proposedPayload}</Code> : null;
-  const fields = ['title', 'topic', 'angle', 'hook', 'hypothesis', 'statement', 'name', 'condition', 'action', 'body', 'callToAction', 'targetLocation', 'targetChannelType', 'proposedType']
+  const fields = ['intent', 'title', 'topic', 'angle', 'hook', 'hypothesis', 'statement', 'name', 'condition', 'action', 'body', 'callToAction', 'targetLocation', 'targetChannelType', 'proposedType']
     .filter((k) => typeof parsed[k] === 'string' && (parsed[k] as string).trim() !== '');
   if (fields.length === 0) return <Code>{prettyJson(action.proposedPayload)}</Code>;
   return (
