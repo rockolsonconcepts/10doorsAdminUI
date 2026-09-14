@@ -8,8 +8,8 @@ import {
 } from '@/model/admin';
 import {
   AgentAction, AgentStepName, AgentStepStatus, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
-  DiagnosticIntegration, MarketingInsight,
-  MarketingObjective, Publication, PublicationStatus, StrategyRule,
+  DiagnosticIntegration, ListeningObservation, MarketingInsight,
+  MarketingObjective, ObservationStatus, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
 
 export interface ApiError {
@@ -208,6 +208,11 @@ class BackendApi {
   updateObjective = (objectiveId: string, objective: Partial<MarketingObjective>) => this.put<MarketingObjective>(`/v1/marketing/objectives/${objectiveId}`, objective);
   createChannel = (channel: Partial<Channel>) => this.post<Channel>('/v1/marketing/channels', channel);
   updateChannel = (channelId: string, channel: Partial<Channel>) => this.put<Channel>(`/v1/marketing/channels/${channelId}`, channel);
+  observations = (status?: ObservationStatus) => this.get<ListeningObservation[]>('/v1/marketing/observations', status ? { status } : undefined);
+  recordObservation = (observation: Partial<ListeningObservation>) =>
+    this.post<ListeningObservation>('/v1/marketing/observations', observation);
+  setObservationStatus = (observationId: string, status: ObservationStatus) =>
+    this.put<ListeningObservation>(`/v1/marketing/observations/${observationId}/status`, { status });
   charter = () => this.get<ContentCharter>('/v1/marketing/charter');
   saveCharter = (charter: Partial<ContentCharter>) => this.put<ContentCharter>('/v1/marketing/charter', charter);
   agentWorkflow = () => this.get<AgentStepStatus[]>('/v1/marketing/agent/workflow');
