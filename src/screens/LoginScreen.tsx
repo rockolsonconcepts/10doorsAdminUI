@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, ErrorNote, inputClass } from '@/components/ui';
@@ -9,6 +9,10 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(state.status === 'signed-out' ? state.error ?? null : null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (state.status === 'signed-out' && state.error) setError(state.error);
+  }, [state]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
