@@ -30,6 +30,7 @@ export function ActivityScreen() {
     try {
       await backendApi.runAgentStep(step);
       reloadWorkflow();
+      setTimeout(() => { reloadWorkflow(); reloadActions(); }, 4000);
     } catch (e) {
       setRunError(e instanceof Error ? e.message : String(e));
     } finally {
