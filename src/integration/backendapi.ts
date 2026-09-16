@@ -198,6 +198,13 @@ class BackendApi {
   setRuleStatus = (ruleId: string, status: string) => this.put<StrategyRule>(`/v1/marketing/rules/${ruleId}/status`, { status });
   setInsightActive = (insightId: string, active: boolean) =>
     this.put<MarketingInsight>(`/v1/marketing/insights/${insightId}/active`, undefined, { active });
+  createObjective = (objective: Partial<MarketingObjective>) => this.post<MarketingObjective>('/v1/marketing/objectives', objective);
+  createSegment = (segment: Partial<AudienceSegment>) => this.post<AudienceSegment>('/v1/marketing/segments', segment);
+  updateSegment = (segmentId: string, segment: Partial<AudienceSegment>) => this.put<AudienceSegment>(`/v1/marketing/segments/${segmentId}`, segment);
+  createCampaign = (campaign: Partial<Campaign>, audienceSegmentIds: string[], channelIds: string[]) =>
+    this.post<Campaign>('/v1/marketing/campaigns', { campaign, audienceSegmentIds, channelIds });
+  setCampaignStatus = (campaignId: string, status: string) => this.put<Campaign>(`/v1/marketing/campaigns/${campaignId}/status`, { status });
+  updateObjective = (objectiveId: string, objective: Partial<MarketingObjective>) => this.put<MarketingObjective>(`/v1/marketing/objectives/${objectiveId}`, objective);
   createChannel = (channel: Partial<Channel>) => this.post<Channel>('/v1/marketing/channels', channel);
   updateChannel = (channelId: string, channel: Partial<Channel>) => this.put<Channel>(`/v1/marketing/channels/${channelId}`, channel);
   charter = () => this.get<ContentCharter>('/v1/marketing/charter');
