@@ -87,6 +87,9 @@ export interface AudienceSegment {
   audienceSegmentId: string;
   name: string;
   description: string | null;
+  painPoints: string | null; // JSON array of strings
+  interests: string | null; // JSON array of strings
+  preferredContentTypes: string | null; // JSON array of ContentType names
   active: boolean;
 }
 
@@ -96,6 +99,7 @@ export interface Channel {
   name: string;
   handle: string | null;
   enabled: boolean;
+  capabilities: string | null; // JSON array of ChannelCapability names
   maxPostsPerDay: number;
 }
 
@@ -144,10 +148,16 @@ export interface MarketingInsight {
 export interface Campaign {
   campaignId: string;
   name: string;
+  description: string | null;
   campaignStatus: string;
   objectiveId: string | null;
   hypothesis: string | null;
+  startDateMillis: number;
+  endDateMillis: number;
 }
+
+export const OBJECTIVE_TYPES = ['AWARENESS', 'TRAFFIC', 'ENGAGEMENT', 'REGISTRATION', 'ACTIVATION', 'PAID_CONVERSION', 'RETENTION', 'REVENUE'] as const;
+export const CHANNEL_TYPES = ['REDDIT', 'INSTAGRAM', 'THREADS', 'LINKEDIN', 'X', 'FACEBOOK', 'BLOG', 'EMAIL', 'SEO', 'YOUTUBE', 'TIKTOK'] as const;
 
 export type DiagnosticIntegration = 'openai' | 'google-analytics';
 

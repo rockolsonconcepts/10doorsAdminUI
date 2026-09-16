@@ -108,15 +108,24 @@ charter whenever you find yourself rejecting drafts for the same reason.
 
 ### Reference Data
 
-- **Objectives** – what the agent is optimising (registrations, trials, paid subscriptions) with
-  current/target values refreshed by Observe.
-- **Campaigns** – groupings of ideas with a hypothesis; the Learn step evaluates them.
-- **Audience segments** – pain points and interests fed into the draft brief. The richer these
-  are, the more relatable the content; a few words each produces generic posts.
-- **Channels** – one row per destination (`REDDIT`, `THREADS`, `INSTAGRAM`, ...), with handle,
-  capabilities, `maxPostsPerDay` and an Enable/Disable toggle. Disabled channels never receive
-  proposals. Channels are created via `POST /v1/marketing/channels` (or the dev seed);
-  the UI toggles them.
+Nothing seeds this in production (the dev seed is `dev`-profile only), so on a fresh deploy
+every card is empty and the planner has nothing to work with. Each card has an **Add …**
+button; create them in this order:
+
+1. **Objectives** – what the agent is optimising (registrations, trials, paid subscriptions) with
+   current/target values refreshed by Observe. Pause/Activate per row.
+2. **Audience segments** – who the content is for. Pain points and interests are one per line
+   and are fed into the draft brief; write real situations ("tenant paid by Zelle with no
+   memo"), not categories. The richer these are, the more relatable the content.
+3. **Channels** – one row per destination (`REDDIT`, `THREADS`, `INSTAGRAM`, ...), with handle,
+   `maxPostsPerDay` and an Enable/Disable toggle. Disabled channels never receive proposals.
+   All channels are manual today (agent drafts, you post, you record the result).
+4. **Campaigns** – a grouping with a hypothesis, tied to an objective and to the segments and
+   channels it targets; the Learn step evaluates them. Ideas are filed under a campaign, so at
+   least one `ACTIVE` campaign must exist before the first Plan tick.
+
+Also on this screen:
+
 - **Strategy rules** – `POLICY`/`PLATFORM` rules the guard enforces, `STRATEGY`/`PREFERENCE`
   rules the model reads. Agent-proposed rules arrive via the queue; activate/retire them here.
 - **Insights** – validated learnings; toggle active to include/exclude them from the brief.

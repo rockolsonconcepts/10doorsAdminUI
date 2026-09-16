@@ -16,7 +16,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const NOT_ADMIN = 'This account is not a platform administrator.';
+const NOT_ADMIN = 'This account is not a platform administrator (SYSTEM_ADMIN entitlement required).';
+
+export class NotAdminError extends Error {
+  constructor() {
+    super(NOT_ADMIN);
+    this.name = 'NotAdminError';
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
@@ -29,11 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyAdmin = useCallback(async () => {
     const identity = await backendApi.me();
     if (!identity.systemAdmin) {
-      logout(NOT_ADMIN);
-      return;
+      throw new NotAdminError();
     }
     setState({ status: 'signed-in', identity });
-  }, [logout]);
+  }, []);
 
   useEffect(() => {
     backendApi.setUnauthorizedHandler(() => logout('Your session expired. Please sign in again.'));
@@ -42,7 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     verifyAdmin().catch((e: unknown) => {
-      logout(e instanceof BackendError && e.api.status === 403 ? NOT_ADMIN : undefined);
+      const notAdmin = e instanceof NotAdminError || (e instanceof BackendError && e.api.status === 403);
+      logout(notAdmin ? NOT_ADMIN : undefined);
     });
   }, [logout, verifyAdmin]);
 
@@ -52,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await verifyAdmin();
     } catch (e) {
       backendApi.logout();
+      if (e instanceof BackendError && e.api.status === 403) throw new NotAdminError();
       throw e;
     }
   }, [verifyAdmin]);
