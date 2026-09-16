@@ -148,3 +148,14 @@ export interface Campaign {
   objectiveId: string | null;
   hypothesis: string | null;
 }
+
+export type DiagnosticIntegration = 'openai' | 'google-analytics';
+
+export interface ConnectionTestResponse {
+  integration: DiagnosticIntegration;
+  configured: boolean;
+  ok: boolean;
+  detail: string;
+  latencyMillis: number;
+  testedAtMillis: number;
+}

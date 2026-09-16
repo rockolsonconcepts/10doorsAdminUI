@@ -5,10 +5,44 @@ import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
 import { Badge, Button, Card, ErrorNote, PageHeader, Spinner, Stat } from '@/components/ui';
 import { formatDateTime, formatDuration, formatRelative } from '@/lib/format';
+import { ConnectionTestResponse, DiagnosticIntegration } from '@/model/marketing';
 
 const HEALTH_POLL_MS = 30_000;
 
 type Health = Awaited<ReturnType<typeof backendApi.health>>;
+
+function ConnectionTest({ integration }: { integration: DiagnosticIntegration }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<ConnectionTestResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      setResult(await backendApi.testConnection(integration));
+    } catch (e) {
+      setResult(null);
+      setError(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <Button variant="secondary" className="px-2 py-0.5 text-xs" onClick={run} disabled={running}>
+        {running ? 'Testing…' : 'Test connection'}
+      </Button>
+      {result && (
+        <p className={result.ok ? 'text-xs text-emerald-700 dark:text-emerald-400' : 'text-xs text-red-600 dark:text-red-400'}>
+          {result.ok ? 'OK' : 'Failed'} · {result.latencyMillis} ms · {result.detail}
+        </p>
+      )}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </div>
+  );
+}
 
 export function OverviewScreen() {
   const system = useAsync(() => backendApi.system(), []);
@@ -100,9 +134,15 @@ export function OverviewScreen() {
               <Stat label="Pending review" value={agent.pendingReview} tone={agent.pendingReview > 0 ? 'warn' : 'default'} hint={<Link className="text-blue-600 hover:underline" to="/marketing">Open queue</Link>} />
               <Stat label="Actions (24h)" value={agent.actionsLast24h} hint={agent.lastActionAtMillis ? `last ${formatRelative(agent.lastActionAtMillis)}` : 'no activity yet'} />
               <Stat label="Failed (24h)" value={agent.failedLast24h} tone={agent.failedLast24h > 0 ? 'bad' : 'default'} />
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center justify-between"><span className="text-slate-500">OpenAI</span><Badge tone={agent.openAiConfigured ? 'good' : 'warn'}>{agent.openAiConfigured ? 'configured' : 'missing key'}</Badge></div>
-                <div className="flex items-center justify-between"><span className="text-slate-500">GA4</span><Badge tone={agent.googleAnalyticsConfigured ? 'good' : 'warn'}>{agent.googleAnalyticsConfigured ? 'configured' : 'not configured'}</Badge></div>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <div className="flex items-center justify-between"><span className="text-slate-500">OpenAI</span><Badge tone={agent.openAiConfigured ? 'good' : 'warn'}>{agent.openAiConfigured ? 'configured' : 'missing key'}</Badge></div>
+                  <ConnectionTest integration="openai" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between"><span className="text-slate-500">GA4</span><Badge tone={agent.googleAnalyticsConfigured ? 'good' : 'warn'}>{agent.googleAnalyticsConfigured ? 'configured' : 'not configured'}</Badge></div>
+                  <ConnectionTest integration="google-analytics" />
+                </div>
                 <div className="flex items-center justify-between"><span className="text-slate-500">Timezone</span><span>{agent.timezone}</span></div>
               </div>
             </div>
