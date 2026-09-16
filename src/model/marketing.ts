@@ -161,6 +161,23 @@ export const CHANNEL_TYPES = ['REDDIT', 'INSTAGRAM', 'THREADS', 'LINKEDIN', 'X',
 
 export type DiagnosticIntegration = 'openai' | 'google-analytics';
 
+export type AgentStepName = 'OBSERVE' | 'PLAN' | 'EXECUTE' | 'LEARN';
+
+export interface AgentStepStatus {
+  step: AgentStepName;
+  title: string;
+  description: string;
+  cron: string;
+  timezone: string;
+  nextRunAtMillis: number | null;
+  running: boolean;
+  lastStartedAtMillis: number | null;
+  lastFinishedAtMillis: number | null;
+  lastOk: boolean | null;
+  lastError: string | null;
+  lastTrigger: 'SCHEDULE' | 'MANUAL' | null;
+}
+
 export interface ConnectionTestResponse {
   integration: DiagnosticIntegration;
   configured: boolean;
