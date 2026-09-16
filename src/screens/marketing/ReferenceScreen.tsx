@@ -3,6 +3,7 @@ import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
 import { Campaign } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
+import { AddCampaignForm, AddChannelForm, AddObjectiveForm, AddSegmentForm } from './ReferenceForms';
 
 export function ReferenceScreen() {
   const objectives = useAsync(() => backendApi.objectives(), []);
@@ -19,48 +20,78 @@ export function ReferenceScreen() {
     channels.reload();
   }
 
+  async function toggleSegment(segmentId: string, active: boolean) {
+    const current = segments.data?.find((s) => s.audienceSegmentId === segmentId);
+    if (!current) return;
+    await backendApi.updateSegment(segmentId, { ...current, active });
+    segments.reload();
+  }
+
+  async function setObjectiveStatus(objectiveId: string, status: string) {
+    const current = objectives.data?.find((o) => o.objectiveId === objectiveId);
+    if (!current) return;
+    await backendApi.updateObjective(objectiveId, { ...current, status });
+    objectives.reload();
+  }
+
   return (
     <>
       <PageHeader title="Reference Data" subtitle="What the agent plans against: objectives, campaigns, audiences, channels, rules and learned insights" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Objectives">
           <ErrorNote message={objectives.error} />
-          {objectives.loading ? <Spinner /> : !objectives.data?.length ? <Empty>None.</Empty> : (
-            <Table head={<><th>Name</th><th>Type</th><th>Progress</th><th>Status</th></>}>
+          {objectives.loading ? <Spinner /> : !objectives.data?.length ? <Empty>None yet — add the outcome the agent should work toward (e.g. registrations).</Empty> : (
+            <Table head={<><th>Name</th><th>Type</th><th>Progress</th><th>Status</th><th></th></>}>
               {objectives.data.map((o) => (
                 <tr key={o.objectiveId}>
                   <td>{o.name}</td>
                   <td><Badge>{o.type}</Badge></td>
                   <td>{o.currentValue ?? '—'} / {o.targetValue ?? '—'}{o.baselineValue != null && <span className="text-xs text-slate-500"> (base {o.baselineValue})</span>}</td>
                   <td><Badge tone={o.status === 'ACTIVE' ? 'good' : 'default'}>{o.status}</Badge></td>
+                  <td><Button variant="secondary" onClick={() => setObjectiveStatus(o.objectiveId, o.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{o.status === 'ACTIVE' ? 'Pause' : 'Activate'}</Button></td>
                 </tr>
               ))}
             </Table>
           )}
+          <AddObjectiveForm onCreated={objectives.reload} />
         </Card>
         <Card title="Campaigns">
           <ErrorNote message={campaigns.error} />
-          {campaigns.loading ? <Spinner /> : !campaigns.data?.length ? <Empty>None yet — the agent creates campaigns from approved ideas.</Empty> : (
-            <Table head={<><th>Name</th><th>Hypothesis</th><th>Status</th></>}>
+          {campaigns.loading ? <Spinner /> : !campaigns.data?.length ? <Empty>None yet — add one so the planner has something to file ideas under.</Empty> : (
+            <Table head={<><th>Name</th><th>Hypothesis</th><th>Status</th><th></th></>}>
               {campaigns.data.map((c) => (
-                <tr key={c.campaignId}><td>{c.name}</td><td className="max-w-xs truncate" title={c.hypothesis ?? ''}>{c.hypothesis}</td><td><Badge>{c.campaignStatus}</Badge></td></tr>
+                <tr key={c.campaignId}>
+                  <td>{c.name}</td>
+                  <td className="max-w-xs truncate" title={c.hypothesis ?? ''}>{c.hypothesis}</td>
+                  <td><Badge tone={c.campaignStatus === 'ACTIVE' ? 'good' : 'default'}>{c.campaignStatus}</Badge></td>
+                  <td><Button variant="secondary" onClick={() => backendApi.setCampaignStatus(c.campaignId, c.campaignStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE').then(campaigns.reload)}>{c.campaignStatus === 'ACTIVE' ? 'Pause' : 'Activate'}</Button></td>
+                </tr>
               ))}
             </Table>
+          )}
+          {!objectives.loading && !segments.loading && !channels.loading && (
+            <AddCampaignForm objectives={objectives.data ?? []} segments={segments.data ?? []} channels={channels.data ?? []} onCreated={campaigns.reload} />
           )}
         </Card>
         <Card title="Audience segments">
           <ErrorNote message={segments.error} />
-          {segments.loading ? <Spinner /> : !segments.data?.length ? <Empty>None.</Empty> : (
-            <Table head={<><th>Name</th><th>Description</th><th></th></>}>
+          {segments.loading ? <Spinner /> : !segments.data?.length ? <Empty>None yet — describe who the content is for, with their real pain points.</Empty> : (
+            <Table head={<><th>Name</th><th>Description</th><th></th><th></th></>}>
               {segments.data.map((s) => (
-                <tr key={s.audienceSegmentId}><td>{s.name}</td><td className="text-slate-600 dark:text-slate-300">{s.description}</td><td>{s.active ? <Badge tone="good">active</Badge> : <Badge>inactive</Badge>}</td></tr>
+                <tr key={s.audienceSegmentId}>
+                  <td>{s.name}</td>
+                  <td className="text-slate-600 dark:text-slate-300">{s.description}</td>
+                  <td>{s.active ? <Badge tone="good">active</Badge> : <Badge>inactive</Badge>}</td>
+                  <td><Button variant="secondary" onClick={() => toggleSegment(s.audienceSegmentId, !s.active)}>{s.active ? 'Deactivate' : 'Activate'}</Button></td>
+                </tr>
               ))}
             </Table>
           )}
+          <AddSegmentForm onCreated={segments.reload} />
         </Card>
         <Card title="Channels">
           <ErrorNote message={channels.error} />
-          {channels.loading ? <Spinner /> : !channels.data?.length ? <Empty>None.</Empty> : (
+          {channels.loading ? <Spinner /> : !channels.data?.length ? <Empty>None yet — add where you post (Threads, Instagram, Reddit…).</Empty> : (
             <Table head={<><th>Name</th><th>Type</th><th>Cap/day</th><th></th></>}>
               {channels.data.map((c) => (
                 <tr key={c.channelId}>
@@ -72,6 +103,7 @@ export function ReferenceScreen() {
               ))}
             </Table>
           )}
+          <AddChannelForm onCreated={channels.reload} />
         </Card>
         <Card title="Strategy rules">
           <ErrorNote message={rules.error} />
