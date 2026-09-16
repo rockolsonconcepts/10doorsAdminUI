@@ -7,7 +7,8 @@ import {
   PagedResponse, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
-  AgentAction, AttributionLink, AudienceSegment, Campaign, Channel, ContentAsset, ContentCharter, MarketingInsight,
+  AgentAction, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
+  DiagnosticIntegration, MarketingInsight,
   MarketingObjective, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
 
@@ -209,6 +210,8 @@ class BackendApi {
   updateChannel = (channelId: string, channel: Partial<Channel>) => this.put<Channel>(`/v1/marketing/channels/${channelId}`, channel);
   charter = () => this.get<ContentCharter>('/v1/marketing/charter');
   saveCharter = (charter: Partial<ContentCharter>) => this.put<ContentCharter>('/v1/marketing/charter', charter);
+  testConnection = (integration: DiagnosticIntegration) =>
+    this.post<ConnectionTestResponse>(`/v1/marketing/diagnostics/${integration}/test`);
 }
 
 export const backendApi = new BackendApi();

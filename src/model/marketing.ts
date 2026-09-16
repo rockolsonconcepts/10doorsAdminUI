@@ -158,3 +158,14 @@ export interface Campaign {
 
 export const OBJECTIVE_TYPES = ['AWARENESS', 'TRAFFIC', 'ENGAGEMENT', 'REGISTRATION', 'ACTIVATION', 'PAID_CONVERSION', 'RETENTION', 'REVENUE'] as const;
 export const CHANNEL_TYPES = ['REDDIT', 'INSTAGRAM', 'THREADS', 'LINKEDIN', 'X', 'FACEBOOK', 'BLOG', 'EMAIL', 'SEO', 'YOUTUBE', 'TIKTOK'] as const;
+
+export type DiagnosticIntegration = 'openai' | 'google-analytics';
+
+export interface ConnectionTestResponse {
+  integration: DiagnosticIntegration;
+  configured: boolean;
+  ok: boolean;
+  detail: string;
+  latencyMillis: number;
+  testedAtMillis: number;
+}
