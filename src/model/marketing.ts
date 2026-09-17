@@ -52,7 +52,21 @@ export interface ContentAsset {
   topic: string | null;
   callToAction: string | null;
   contentStatus: string;
+  /** LLM version, kept once the operator edits; null until then. */
+  originalTitle: string | null;
+  originalBody: string | null;
+  originalHook: string | null;
+  originalCallToAction: string | null;
+  editedAtMillis: number;
+  editedBy: string | null;
   createdAtMillis: number;
+}
+
+export interface AssetTextUpdate {
+  title?: string;
+  hook?: string;
+  body?: string;
+  callToAction?: string;
 }
 
 export interface ContentCharter {
