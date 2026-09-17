@@ -88,6 +88,21 @@ const PLACEMENTS: Record<string, Placement[]> = {
       steps: ['Captions are not clickable. Put the campaign link in your profile bio and say "link in bio".'],
     },
   ],
+  SUBSTACK: [
+    {
+      title: 'Substack post / newsletter issue',
+      uses: 'post',
+      steps: [
+        'Paste the full tracked URL wherever the post links to 10Doors (inline text link or a button) — links in Substack posts and emails are clickable and tracked per issue.',
+        'Substack adds its own tracking to outbound links; the /go/ link still records the click.',
+      ],
+    },
+    {
+      title: 'Publication About page / welcome email',
+      uses: 'campaign',
+      steps: ['Use the campaign link (above) for evergreen spots like the About page, welcome email and footer.'],
+    },
+  ],
   YOUTUBE: [
     { title: 'YouTube description', uses: 'post', steps: ['Paste the full tracked URL in the video description and pin it as a comment.'] },
   ],
