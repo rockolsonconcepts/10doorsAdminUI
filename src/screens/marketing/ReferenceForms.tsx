@@ -150,6 +150,7 @@ export function AddChannelForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
   const [maxPostsPerDay, setMaxPostsPerDay] = useState('1');
+  const [manualPosting, setManualPosting] = useState(true);
 
   return (
     <AddPanel label="Add channel" submitLabel="Create channel" disabled={!name} onSubmit={async () => {
@@ -160,9 +161,10 @@ export function AddChannelForm({ onCreated }: { onCreated: () => void }) {
         enabled: true,
         capabilities: JSON.stringify(['PUBLISH_POST']),
         maxPostsPerDay: Number(maxPostsPerDay) || 1,
+        manualPosting,
       };
       await backendApi.createChannel(channel);
-      setName(''); setHandle('');
+      setName(''); setHandle(''); setManualPosting(true);
       onCreated();
     }}>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -175,7 +177,16 @@ export function AddChannelForm({ onCreated }: { onCreated: () => void }) {
       </div>
       <Field label="Name"><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Threads – @10doors" required /></Field>
       <Field label="Handle / location"><input className={inputClass} value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@10doors, r/Landlord, …" /></Field>
-      <p className="text-xs text-slate-500">Channels are manual until an adapter exists: the agent drafts, you post and record the result.</p>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1" checked={manualPosting} onChange={(e) => setManualPosting(e.target.checked)} />
+        <span>
+          <span className="font-medium">Manual posting</span>
+          <span className="block text-xs text-slate-500">
+            Checked: the agent drafts and queues the post; you publish it yourself and record the URL. Posting caps are advisory.
+            Unchecked: the agent posts through the channel's adapter after you approve — publications fail visibly if no adapter exists for this type yet.
+          </span>
+        </span>
+      </label>
     </AddPanel>
   );
 }

@@ -101,6 +101,8 @@ export interface Channel {
   enabled: boolean;
   capabilities: string | null; // JSON array of ChannelCapability names
   maxPostsPerDay: number;
+  /** true: agent drafts + queues, you post by hand and record the URL; false: the channel's adapter posts after approval. */
+  manualPosting: boolean;
 }
 
 export type ObservationStatus = 'NEW' | 'REVIEWED' | 'ACTIONED' | 'IGNORED';

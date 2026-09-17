@@ -91,7 +91,7 @@ export function PublicationDetail({ publication, channel, onSaved }: { publicati
     <div className="space-y-4 text-sm">
       <dl className="grid grid-cols-[8rem_1fr] gap-y-1">
         <dt className="text-slate-500">Target</dt><dd>{publication.targetLocation ?? '—'}</dd>
-        <dt className="text-slate-500">Channel</dt><dd>{channel ? <>{channel.name} <Badge>{channel.channelType}</Badge></> : <span className="font-mono text-xs">{publication.channelId}</span>}</dd>
+        <dt className="text-slate-500">Channel</dt><dd>{channel ? <>{channel.name} <Badge>{channel.channelType}</Badge> <Badge tone={channel.manualPosting ? 'default' : 'good'}>{channel.manualPosting ? 'manual posting' : 'automated'}</Badge></> : <span className="font-mono text-xs">{publication.channelId}</span>}</dd>
         {publication.failureReason && <><dt className="text-slate-500">{publication.publicationStatus === 'CANCELLED' ? 'Blocked because' : 'Failure'}</dt><dd className="text-red-600">{publication.failureReason}</dd></>}
       </dl>
       {asset.loading ? <Spinner label="Loading content…" /> : asset.data && (
@@ -106,6 +106,9 @@ export function PublicationDetail({ publication, channel, onSaved }: { publicati
       <TrackedLinkGuide publication={publication} channel={channel} />
       {publication.publicationStatus === 'CANCELLED' && (
         <p className="text-sm text-slate-500">Cancelled by the policy guard, so no PUBLISH action was queued. If you posted it anyway, record the URL below so Learn can pick it up.</p>
+      )}
+      {channel && !channel.manualPosting && publication.publicationStatus !== 'PUBLISHED' && publication.publicationStatus !== 'FAILED' && (
+        <p className="text-sm text-slate-500">Automated channel: the agent posts this itself once the PUBLISH action is approved. Only record a result here if you posted it by hand.</p>
       )}
       {publication.publicationStatus !== 'PUBLISHED' && (
         <div className="space-y-2">

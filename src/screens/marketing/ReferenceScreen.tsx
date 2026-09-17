@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Campaign } from '@/model/marketing';
+import { Campaign, Channel } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 import { AddCampaignForm, AddChannelForm, AddObjectiveForm, AddSegmentForm } from './ReferenceForms';
 
@@ -13,10 +13,10 @@ export function ReferenceScreen() {
   const rules = useAsync(() => backendApi.rules(), []);
   const insights = useAsync(() => backendApi.insights(), []);
 
-  async function toggleChannel(channelId: string, enabled: boolean) {
+  async function updateChannel(channelId: string, changes: Partial<Pick<Channel, 'enabled' | 'manualPosting'>>) {
     const current = channels.data?.find((c) => c.channelId === channelId);
     if (!current) return;
-    await backendApi.updateChannel(channelId, { ...current, enabled });
+    await backendApi.updateChannel(channelId, { ...current, ...changes });
     channels.reload();
   }
 
@@ -92,13 +92,19 @@ export function ReferenceScreen() {
         <Card title="Channels">
           <ErrorNote message={channels.error} />
           {channels.loading ? <Spinner /> : !channels.data?.length ? <Empty>None yet — add where you post (Threads, Instagram, Reddit…).</Empty> : (
-            <Table head={<><th>Name</th><th>Type</th><th>Cap/day</th><th></th></>}>
+            <Table head={<><th>Name</th><th>Type</th><th>Posting</th><th>Cap/day</th><th></th></>}>
               {channels.data.map((c) => (
                 <tr key={c.channelId}>
                   <td>{c.name}{c.handle && <span className="ml-1 text-xs text-slate-500">{c.handle}</span>}</td>
                   <td><Badge>{c.channelType}</Badge></td>
+                  <td>
+                    <label className="inline-flex items-center gap-1 text-sm" title="Checked: you post by hand and record the URL (caps advisory). Unchecked: the agent posts via the channel adapter after approval.">
+                      <input type="checkbox" checked={c.manualPosting} onChange={(e) => updateChannel(c.channelId, { manualPosting: e.target.checked })} />
+                      Manual
+                    </label>
+                  </td>
                   <td>{c.maxPostsPerDay}</td>
-                  <td><Button variant="secondary" onClick={() => toggleChannel(c.channelId, !c.enabled)}>{c.enabled ? 'Disable' : 'Enable'}</Button></td>
+                  <td><Button variant="secondary" onClick={() => updateChannel(c.channelId, { enabled: !c.enabled })}>{c.enabled ? 'Disable' : 'Enable'}</Button></td>
                 </tr>
               ))}
             </Table>
