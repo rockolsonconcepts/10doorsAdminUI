@@ -69,7 +69,7 @@ export function ActionCard({ action: a, channels, onReviewed }: { action: AgentA
       <ProposedPayload action={a} channels={channels} />
       <ErrorNote message={error} />
       <div className="mt-3 flex items-center gap-2">
-        <input className={inputClass} placeholder="Review note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <input className={inputClass} placeholder="Feedback for the agent (optional) — read by future plans, drafts and Learn" value={note} onChange={(e) => setNote(e.target.value)} />
         <Button disabled={busy} onClick={() => review(true)}><Check className="h-4 w-4" /> Approve</Button>
         <Button variant="danger" disabled={busy} onClick={() => review(false)}><X className="h-4 w-4" /> Reject</Button>
       </div>
