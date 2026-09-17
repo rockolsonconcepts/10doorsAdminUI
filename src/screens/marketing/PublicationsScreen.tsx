@@ -55,7 +55,7 @@ export function PublicationsScreen() {
   );
 }
 
-function PublicationDetail({ publication, channel, onSaved }: { publication: Publication; channel: Channel | null; onSaved: () => void }) {
+export function PublicationDetail({ publication, channel, onSaved }: { publication: Publication; channel: Channel | null; onSaved: () => void }) {
   const asset = useAsync(() => (publication.contentAssetId ? backendApi.asset(publication.contentAssetId) : Promise.resolve(null)), [publication.contentAssetId]);
   const [url, setUrl] = useState(publication.externalUrl ?? '');
   const [postId, setPostId] = useState(publication.externalPostId ?? '');

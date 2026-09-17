@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import clsx from 'clsx';
-import { Activity, AlertTriangle, Building2, Megaphone, Moon, Sun, LogOut, ClipboardCheck, Send, BookOpen, ListChecks, PenLine } from 'lucide-react';
+import { Activity, AlertTriangle, Building2, Megaphone, Moon, Sun, LogOut, ClipboardCheck, Send, BookOpen, ListChecks, PenLine, Ear, PlayCircle } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/themeProvider';
 
@@ -16,11 +16,18 @@ const nav = [
   {
     section: 'Marketing Agent',
     items: [
-      { to: '/marketing', label: 'Approval Queue', icon: ClipboardCheck, end: true },
-      { to: '/marketing/publications', label: 'Publications', icon: Send },
-      { to: '/marketing/activity', label: 'Agent Activity', icon: ListChecks },
+      { to: '/marketing', label: 'Run the agent', icon: PlayCircle, end: true },
       { to: '/marketing/reference', label: 'Reference Data', icon: BookOpen },
       { to: '/marketing/charter', label: 'Content Charter', icon: PenLine },
+    ],
+  },
+  {
+    section: 'Agent detail',
+    items: [
+      { to: '/marketing/queue', label: 'Approval Queue', icon: ClipboardCheck },
+      { to: '/marketing/publications', label: 'Publications', icon: Send },
+      { to: '/marketing/listening', label: 'Listening', icon: Ear },
+      { to: '/marketing/activity', label: 'Agent Activity', icon: ListChecks },
     ],
   },
 ];
