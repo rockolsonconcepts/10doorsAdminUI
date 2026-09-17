@@ -145,6 +145,7 @@ function AssetEditor({ asset, locked, onSaved }: { asset: ContentAsset; locked: 
 
   const dirty = title !== (asset.title ?? '') || hook !== (asset.hook ?? '') || body !== (asset.body ?? '') || cta !== (asset.callToAction ?? '');
   const edited = asset.editedAtMillis > 0;
+  const rewrite = rewriteLabel(asset);
 
   async function saveText() {
     setBusy(true);
@@ -171,7 +172,7 @@ function AssetEditor({ asset, locked, onSaved }: { asset: ContentAsset; locked: 
   if (locked) {
     return (
       <div className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
-        <div className="mb-2 flex items-center gap-2"><span className="font-medium">Published text</span>{edited && <Badge tone="good">your edit · voice example</Badge>}</div>
+        <div className="mb-2 flex items-center gap-2"><span className="font-medium">Published text</span>{rewrite && <Badge tone={rewrite.light ? 'default' : 'good'}>{rewrite.text}</Badge>}</div>
         {asset.title && <div className="mb-1 font-semibold">{asset.title}</div>}
         {asset.hook && <div className="mb-2 italic text-slate-600 dark:text-slate-300">{asset.hook}</div>}
         <div className="whitespace-pre-wrap">{asset.body}</div>
@@ -188,7 +189,7 @@ function AssetEditor({ asset, locked, onSaved }: { asset: ContentAsset; locked: 
   return (
     <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-white/10">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium">Content {edited && <Badge>edited by you</Badge>}</span>
+        <span className="font-medium">Content {rewrite && <Badge>{rewrite.text}</Badge>}</span>
         {edited && <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setShowOriginal((v) => !v)}>{showOriginal ? 'Hide' : 'Show'} what the agent wrote</button>}
       </div>
       {showOriginal && <OriginalText asset={asset} />}
@@ -216,6 +217,17 @@ function AssetEditor({ asset, locked, onSaved }: { asset: ContentAsset; locked: 
       </p>
     </div>
   );
+}
+
+/**
+ * Readable rewrite indicator. Rewrites (>15% of words changed) become hand-edited voice examples once published;
+ * light edits and untouched posts only count as implicit approval of the agent's voice if they go on to get clicks/signups.
+ */
+function rewriteLabel(asset: ContentAsset): { text: string; light: boolean } | null {
+  if (asset.editedAtMillis <= 0) return null;
+  const pct = Math.round((asset.rewriteShare ?? 0) * 100);
+  if (pct <= 15) return { text: `light edit · ${pct}% rewritten`, light: true };
+  return { text: `your rewrite · ${pct}% changed · voice example`, light: false };
 }
 
 function OriginalText({ asset }: { asset: ContentAsset }) {

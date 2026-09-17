@@ -59,6 +59,8 @@ export interface ContentAsset {
   originalCallToAction: string | null;
   editedAtMillis: number;
   editedBy: string | null;
+  /** Share (0..1) of words changed between the agent's version and the current text; null/0 when unedited. */
+  rewriteShare: number | null;
   createdAtMillis: number;
 }
 

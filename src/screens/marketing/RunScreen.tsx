@@ -228,7 +228,7 @@ export function RunScreen() {
         </Step>
 
         <Step n={7} title="Learn" status={<QueueBadge count={learnItems.length} noun="proposal" />}
-          summary="Weekly, once posts have results: the agent proposes insights and strategy rules from what performed. Approved rules steer the next plans."
+          summary="Weekly, once posts have results: the agent proposes insights, strategy rules and Content Charter edits from what performed and from how you rewrote its drafts. Approved items steer the next plans."
           defaultOpen={learnItems.length > 0}
           aside={<StepRunner step={stepFor('LEARN')} busy={!!executing} onRun={() => runStep('LEARN', 'Analysing results…')} />}>
           {learnItems.length === 0 ? (
