@@ -7,7 +7,11 @@ import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inpu
 import { formatRelative } from '@/lib/format';
 import { TrackedLinkGuide } from './TrackedLinkGuide';
 
-const STATUSES: PublicationStatus[] = ['PENDING', 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED'];
+const STATUSES: PublicationStatus[] = ['PENDING', 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED', 'CANCELLED'];
+const STATUS_LABEL: Partial<Record<PublicationStatus, string>> = { CANCELLED: 'BLOCKED / CANCELLED' };
+const STATUS_HINT: Partial<Record<PublicationStatus, string>> = {
+  CANCELLED: 'Publications the policy guard blocked (reason shown per row) or that were cancelled. Nothing here is expected to be posted.',
+};
 
 export function PublicationsScreen() {
   const [status, setStatus] = useState<PublicationStatus>('PENDING');
@@ -25,9 +29,10 @@ export function PublicationsScreen() {
       />
       <div className="mb-4 flex gap-2">
         {STATUSES.map((s) => (
-          <Button key={s} variant={s === status ? 'primary' : 'secondary'} onClick={() => { setStatus(s); setSelected(null); }}>{s}</Button>
+          <Button key={s} variant={s === status ? 'primary' : 'secondary'} onClick={() => { setStatus(s); setSelected(null); }}>{STATUS_LABEL[s] ?? s}</Button>
         ))}
       </div>
+      {STATUS_HINT[status] && <p className="mb-4 text-sm text-slate-500">{STATUS_HINT[status]}</p>}
       <ErrorNote message={list.error} />
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <Card title={`${status} publications`}>
@@ -38,8 +43,9 @@ export function PublicationsScreen() {
                   <td>
                     <div>{p.targetLocation ?? '—'}</div>
                     <div className="text-xs text-slate-500">{channelFor(p.channelId)?.name ?? p.channelId?.slice(0, 8)} · <span className="font-mono">{p.publicationId.slice(0, 8)}</span></div>
+                    {p.failureReason && <div className="mt-1 max-w-md text-xs text-red-600">{p.failureReason}</div>}
                   </td>
-                  <td><Badge tone={p.publicationStatus === 'PUBLISHED' ? 'good' : p.publicationStatus === 'FAILED' ? 'bad' : 'warn'}>{p.publicationStatus}</Badge></td>
+                  <td><Badge tone={p.publicationStatus === 'PUBLISHED' ? 'good' : p.publicationStatus === 'FAILED' || p.publicationStatus === 'CANCELLED' ? 'bad' : 'warn'}>{p.publicationStatus}</Badge></td>
                   <td className="whitespace-nowrap">{formatRelative(p.createdAtMillis)}</td>
                   <td>{p.externalUrl && <a className="text-blue-600 hover:underline" href={p.externalUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><ExternalLink className="h-4 w-4" /></a>}</td>
                 </tr>
@@ -86,7 +92,7 @@ export function PublicationDetail({ publication, channel, onSaved }: { publicati
       <dl className="grid grid-cols-[8rem_1fr] gap-y-1">
         <dt className="text-slate-500">Target</dt><dd>{publication.targetLocation ?? '—'}</dd>
         <dt className="text-slate-500">Channel</dt><dd>{channel ? <>{channel.name} <Badge>{channel.channelType}</Badge></> : <span className="font-mono text-xs">{publication.channelId}</span>}</dd>
-        {publication.failureReason && <><dt className="text-slate-500">Failure</dt><dd className="text-red-600">{publication.failureReason}</dd></>}
+        {publication.failureReason && <><dt className="text-slate-500">{publication.publicationStatus === 'CANCELLED' ? 'Blocked because' : 'Failure'}</dt><dd className="text-red-600">{publication.failureReason}</dd></>}
       </dl>
       {asset.loading ? <Spinner label="Loading content…" /> : asset.data && (
         <div className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
@@ -98,6 +104,9 @@ export function PublicationDetail({ publication, channel, onSaved }: { publicati
         </div>
       )}
       <TrackedLinkGuide publication={publication} channel={channel} />
+      {publication.publicationStatus === 'CANCELLED' && (
+        <p className="text-sm text-slate-500">Cancelled by the policy guard, so no PUBLISH action was queued. If you posted it anyway, record the URL below so Learn can pick it up.</p>
+      )}
       {publication.publicationStatus !== 'PUBLISHED' && (
         <div className="space-y-2">
           <div className="font-medium">Record result</div>
