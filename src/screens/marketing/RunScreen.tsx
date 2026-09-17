@@ -124,7 +124,7 @@ export function RunScreen() {
       <ErrorNote message={loadError ?? runError} />
       {executing && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
-          <Loader2 className="h-4 w-4 animate-spin" /> {executing} The next stage will appear below when Execute finishes.
+          <Loader2 className="h-4 w-4 animate-spin" /> {executing} This screen refreshes when the step finishes.
         </div>
       )}
 
@@ -147,7 +147,24 @@ export function RunScreen() {
           </ul>
         </Step>
 
-        <Step n={2} title="Listen" status={<Badge tone={observations.data?.length ? 'info' : 'default'}>{observations.data?.length ?? 0} new</Badge>}
+        <Step n={2} title="Observe" status={stepFor('OBSERVE')?.lastOk === false ? <Badge tone="bad">Last run failed</Badge> : agent?.googleAnalyticsConfigured ? <Badge tone="good">App + GA4</Badge> : <Badge>App metrics only</Badge>}
+          summary="Snapshots your app's numbers (registrations, units, leases, subscriptions) and GA4 traffic if configured. Plan reads the recent snapshots; Learn compares them against what was posted. Runs on its own; run it now if you want fresh numbers before planning."
+          defaultOpen={stepFor('OBSERVE')?.lastOk === false}
+          aside={<StepRunner step={stepFor('OBSERVE')} busy={!!executing} onRun={() => runStep('OBSERVE', 'Collecting metrics…')} />}>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2"><StatusDot ok={agent ? true : null} required /><div>App metrics — always collected from the backend database.</div></li>
+            <li className="flex items-start gap-2">
+              <StatusDot ok={agent?.googleAnalyticsConfigured ?? null} required={false} />
+              <div className="flex-1">Google Analytics 4 <span className="ml-2 text-xs text-slate-400">optional</span>
+                {agent?.googleAnalyticsConfigured === false && <div className="text-xs text-slate-500">Set marketing.agent.google-analytics.property-id and credentials-json, then use Test connection on Overview.</div>}
+              </div>
+              {agent?.googleAnalyticsConfigured === false && <Link to="/" className="text-xs text-blue-600 hover:underline">Fix <ArrowRight className="inline h-3 w-3" /></Link>}
+            </li>
+            {stepFor('OBSERVE')?.lastError && <li className="text-xs text-red-600">{stepFor('OBSERVE')!.lastError}</li>}
+          </ul>
+        </Step>
+
+        <Step n={3} title="Listen" status={<Badge tone={observations.data?.length ? 'info' : 'default'}>{observations.data?.length ?? 0} new</Badge>}
           summary="Optional. Paste what landlords and tenants are actually asking (Reddit threads, comments, support emails); the next Plan reads every NEW observation."
           defaultOpen={false}>
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -171,7 +188,7 @@ export function RunScreen() {
           </div>
         </Step>
 
-        <Step n={3} title="Plan" status={<QueueBadge count={ideas.length} noun="idea" />}
+        <Step n={4} title="Plan" status={<QueueBadge count={ideas.length} noun="idea" />}
           summary="Turns your objective, segments, charter and observations into content ideas. Approve the ones worth writing."
           defaultOpen
           aside={<StepRunner step={stepFor('PLAN')} busy={!!executing} onRun={() => runStep('PLAN', 'Planning ideas…')} />}>
@@ -182,7 +199,7 @@ export function RunScreen() {
           )}
         </Step>
 
-        <Step n={4} title="Draft" status={<QueueBadge count={drafts.length} noun="draft" />}
+        <Step n={5} title="Draft" status={<QueueBadge count={drafts.length} noun="draft" />}
           summary="Approved ideas become one draft per channel. Approving a draft creates the publication and its tracked link."
           defaultOpen>
           {drafts.length === 0 ? (
@@ -192,7 +209,7 @@ export function RunScreen() {
           )}
         </Step>
 
-        <Step n={5} title="Publish" status={<QueueBadge count={publishApprovals.length + toPost.length} noun="item" />}
+        <Step n={6} title="Publish" status={<QueueBadge count={publishApprovals.length + toPost.length} noun="item" />}
           summary="Approve the publish action, then post the text yourself with its tracked link and record the live URL. All channels are manual today."
           defaultOpen>
           {publishApprovals.length > 0 && (
@@ -210,7 +227,7 @@ export function RunScreen() {
           {publishApprovals.length === 0 && toPost.length === 0 && <Empty>Nothing to post. Approved drafts land here.</Empty>}
         </Step>
 
-        <Step n={6} title="Learn" status={<QueueBadge count={learnItems.length} noun="proposal" />}
+        <Step n={7} title="Learn" status={<QueueBadge count={learnItems.length} noun="proposal" />}
           summary="Weekly, once posts have results: the agent proposes insights and strategy rules from what performed. Approved rules steer the next plans."
           defaultOpen={learnItems.length > 0}
           aside={<StepRunner step={stepFor('LEARN')} busy={!!executing} onRun={() => runStep('LEARN', 'Analysing results…')} />}>
@@ -223,7 +240,7 @@ export function RunScreen() {
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
-        Observe runs {stepFor('OBSERVE') ? describeCron(stepFor('OBSERVE')!.cron) : 'on its schedule'} and Execute {stepFor('EXECUTE') ? describeCron(stepFor('EXECUTE')!.cron) : 'every few minutes'} in the background; this screen runs Execute for you right after each approval.
+        Execute runs {stepFor('EXECUTE') ? describeCron(stepFor('EXECUTE')!.cron) : 'every few minutes'} in the background; this screen runs Execute for you right after each approval.
         Full audit trail on <Link className="text-blue-600 hover:underline" to="/marketing/activity">Agent Activity</Link>.
       </p>
     </>
