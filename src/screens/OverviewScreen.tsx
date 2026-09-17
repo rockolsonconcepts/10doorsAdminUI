@@ -131,7 +131,7 @@ export function OverviewScreen() {
         >
           {agent ? (
             <div className="grid gap-4 md:grid-cols-4">
-              <Stat label="Pending review" value={agent.pendingReview} tone={agent.pendingReview > 0 ? 'warn' : 'default'} hint={<Link className="text-blue-600 hover:underline" to="/marketing">Open queue</Link>} />
+              <Stat label="Pending review" value={agent.pendingReview} tone={agent.pendingReview > 0 ? 'warn' : 'default'} hint={<Link className="text-blue-600 hover:underline" to="/marketing">Run the agent</Link>} />
               <Stat label="Actions (24h)" value={agent.actionsLast24h} hint={agent.lastActionAtMillis ? `last ${formatRelative(agent.lastActionAtMillis)}` : 'no activity yet'} />
               <Stat label="Failed (24h)" value={agent.failedLast24h} tone={agent.failedLast24h > 0 ? 'bad' : 'default'} />
               <div className="space-y-3 text-sm">

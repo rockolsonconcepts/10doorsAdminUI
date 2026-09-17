@@ -114,7 +114,7 @@ const emptyForm: FormState = {
   sentiment: 'NEUTRAL',
 };
 
-function ObservationForm({ channels, onSaved }: { channels: Channel[]; onSaved: () => void }) {
+export function ObservationForm({ channels, onSaved }: { channels: Channel[]; onSaved: () => void }) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

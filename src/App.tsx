@@ -12,6 +12,7 @@ import { PublicationsScreen } from '@/screens/marketing/PublicationsScreen';
 import { ActivityScreen } from '@/screens/marketing/ActivityScreen';
 import { ReferenceScreen } from '@/screens/marketing/ReferenceScreen';
 import { CharterScreen } from '@/screens/marketing/CharterScreen';
+import { RunScreen } from '@/screens/marketing/RunScreen';
 import { ListeningScreen } from '@/screens/marketing/ListeningScreen';
 
 function Gate() {
@@ -24,7 +25,8 @@ function Gate() {
         <Route index element={<OverviewScreen />} />
         <Route path="errors" element={<ErrorsScreen />} />
         <Route path="platform" element={<PlatformScreen />} />
-        <Route path="marketing" element={<ApprovalQueueScreen />} />
+        <Route path="marketing" element={<RunScreen />} />
+        <Route path="marketing/queue" element={<ApprovalQueueScreen />} />
         <Route path="marketing/publications" element={<PublicationsScreen />} />
         <Route path="marketing/activity" element={<ActivityScreen />} />
         <Route path="marketing/listening" element={<ListeningScreen />} />

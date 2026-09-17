@@ -9,22 +9,6 @@ import { formatRelative, labelFor, prettyJson } from '@/lib/format';
 export function ApprovalQueueScreen() {
   const pending = useAsync(() => backendApi.pendingActions(), []);
   const channels = useAsync(() => backendApi.channels(), []);
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function review(action: AgentAction, approved: boolean) {
-    setBusy(action.actionId);
-    setError(null);
-    try {
-      await backendApi.reviewAction(action.actionId, approved, notes[action.actionId] ?? '');
-      pending.reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
 
   const groups = groupByType(pending.data ?? []);
 
@@ -35,7 +19,7 @@ export function ApprovalQueueScreen() {
         subtitle="Actions the agent proposed that are waiting for a human decision. Nothing is published without approval."
         actions={<Button variant="secondary" onClick={pending.reload}><RefreshCw className="h-4 w-4" /> Refresh</Button>}
       />
-      <ErrorNote message={pending.error ?? error} />
+      <ErrorNote message={pending.error} />
       {pending.loading && !pending.data ? <Spinner /> : groups.length === 0 ? (
         <Card><Empty>Queue is empty. The agent has nothing awaiting review.</Empty></Card>
       ) : (
@@ -44,25 +28,7 @@ export function ApprovalQueueScreen() {
             <Card key={type} title={<span>{labelFor(type)} <Badge>{actions.length}</Badge></span>}>
               <div className="space-y-4">
                 {actions.map((a) => (
-                  <div key={a.actionId} className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
-                    <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-                      <span className="font-mono">{a.actionId}</span>
-                      <span>proposed {formatRelative(a.createdAtMillis)}{a.modelUsed ? ` · ${a.modelUsed}` : ''}{a.campaignId ? ` · campaign ${a.campaignId.slice(0, 8)}` : ''}</span>
-                    </div>
-                    {a.rationale && <p className="mb-3 text-sm"><span className="font-medium">Why: </span>{a.rationale}</p>}
-                    {a.guardReason && <p className="mb-3 text-sm text-amber-700 dark:text-amber-300"><span className="font-medium">Guard: </span>{a.guardReason}</p>}
-                    <ProposedPayload action={a} channels={channels.data ?? []} />
-                    <div className="mt-3 flex items-center gap-2">
-                      <input
-                        className={inputClass}
-                        placeholder="Review note (optional)"
-                        value={notes[a.actionId] ?? ''}
-                        onChange={(e) => setNotes({ ...notes, [a.actionId]: e.target.value })}
-                      />
-                      <Button disabled={busy === a.actionId} onClick={() => review(a, true)}><Check className="h-4 w-4" /> Approve</Button>
-                      <Button variant="danger" disabled={busy === a.actionId} onClick={() => review(a, false)}><X className="h-4 w-4" /> Reject</Button>
-                    </div>
-                  </div>
+                  <ActionCard key={a.actionId} action={a} channels={channels.data ?? []} onReviewed={pending.reload} />
                 ))}
               </div>
             </Card>
@@ -70,6 +36,44 @@ export function ApprovalQueueScreen() {
         </div>
       )}
     </>
+  );
+}
+
+/** One pending action with its readable payload and Approve/Reject controls. */
+export function ActionCard({ action: a, channels, onReviewed }: { action: AgentAction; channels: Channel[]; onReviewed: (approved: boolean) => void }) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function review(approved: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      await backendApi.reviewAction(a.actionId, approved, note);
+      onReviewed(approved);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+      <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+        <span className="font-mono">{a.actionId}</span>
+        <span>proposed {formatRelative(a.createdAtMillis)}{a.modelUsed ? ` · ${a.modelUsed}` : ''}{a.campaignId ? ` · campaign ${a.campaignId.slice(0, 8)}` : ''}</span>
+      </div>
+      {a.rationale && <p className="mb-3 text-sm"><span className="font-medium">Why: </span>{a.rationale}</p>}
+      {a.guardReason && <p className="mb-3 text-sm text-amber-700 dark:text-amber-300"><span className="font-medium">Guard: </span>{a.guardReason}</p>}
+      <ProposedPayload action={a} channels={channels} />
+      <ErrorNote message={error} />
+      <div className="mt-3 flex items-center gap-2">
+        <input className={inputClass} placeholder="Review note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <Button disabled={busy} onClick={() => review(true)}><Check className="h-4 w-4" /> Approve</Button>
+        <Button variant="danger" disabled={busy} onClick={() => review(false)}><X className="h-4 w-4" /> Reject</Button>
+      </div>
+    </div>
   );
 }
 
