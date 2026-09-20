@@ -137,7 +137,7 @@ export function ObservationForm({ channels, onSaved }: { channels: Channel[]; on
         channelType: form.channelType,
         location: form.location || null,
         externalUrl: form.externalUrl || null,
-        externalId: form.externalUrl || null,
+        externalId: null,
         author: form.author || null,
         title: form.title || null,
         snippet: form.snippet,
