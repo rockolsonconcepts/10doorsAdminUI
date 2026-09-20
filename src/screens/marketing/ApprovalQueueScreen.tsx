@@ -77,8 +77,10 @@ export function ActionCard({ action: a, channels, onReviewed }: { action: AgentA
   );
 }
 
-const TEXT_FIELDS = ['intent', 'contentType', 'title', 'topic', 'angle', 'hook', 'hypothesis', 'statement', 'name', 'condition', 'action', 'body', 'callToAction', 'mediaPrompt', 'targetLocation', 'targetChannelType', 'proposedType'];
+const TEXT_FIELDS = ['intent', 'contentType', 'title', 'topic', 'angle', 'hook', 'hypothesis', 'statement', 'name', 'condition', 'action', 'body', 'callToAction', 'mediaPrompt', 'targetLocation', 'targetChannelType', 'proposedType', 'field', 'proposedText', 'evidence'];
 const LIST_FIELDS = ['tags', 'channelIds', 'keyPoints'];
+const NUMBER_FIELDS = ['sampleSize'];
+const LONG_FIELDS = ['body', 'proposedText', 'evidence'];
 
 function ProposedPayload({ action, channels }: { action: AgentAction; channels: Channel[] }) {
   const raw = safeParse(action.proposedPayload);
@@ -89,7 +91,11 @@ function ProposedPayload({ action, channels }: { action: AgentAction; channels: 
   if (typeof parsed.channelId === 'string') rows.push({ label: 'channel', value: channelName(parsed.channelId) });
   for (const k of TEXT_FIELDS) {
     const v = parsed[k];
-    if (typeof v === 'string' && v.trim() !== '') rows.push({ label: k, value: v, body: k === 'body' });
+    if (typeof v === 'string' && v.trim() !== '') rows.push({ label: k, value: v, body: LONG_FIELDS.includes(k) });
+  }
+  for (const k of NUMBER_FIELDS) {
+    const v = parsed[k];
+    if (typeof v === 'number') rows.push({ label: k, value: String(v) });
   }
   for (const k of LIST_FIELDS) {
     const v = parsed[k];
@@ -100,9 +106,15 @@ function ProposedPayload({ action, channels }: { action: AgentAction; channels: 
   if (rows.length === 0) return <Code>{prettyJson(action.proposedPayload)}</Code>;
   return (
     <div className="space-y-2">
+      {action.actionType === 'UPDATE_CHARTER' && (
+        <p className="text-xs text-slate-500">
+          Learn found the same correction across several published edits or review notes and proposes writing it into the Content Charter.
+          Approving replaces the named charter field with the proposed text (banned phrases are appended); rejecting leaves the charter unchanged.
+        </p>
+      )}
       <dl className="grid grid-cols-[9rem_1fr] gap-y-1 text-sm">
         {rows.map((r) => (
-          <FieldRow key={r.label} label={r.label} value={r.value} />
+          <FieldRow key={r.label} label={r.label} value={r.value} long={r.body} />
         ))}
       </dl>
       <details className="text-xs">
@@ -113,11 +125,11 @@ function ProposedPayload({ action, channels }: { action: AgentAction; channels: 
   );
 }
 
-function FieldRow({ label, value }: { label: string; value: string }) {
+function FieldRow({ label, value, long }: { label: string; value: string; long?: boolean }) {
   return (
     <>
       <dt className="capitalize text-slate-500">{label.replace(/([A-Z])/g, ' $1').toLowerCase()}</dt>
-      <dd className={label === 'body' ? 'whitespace-pre-wrap' : ''}>{value}</dd>
+      <dd className={long ? 'whitespace-pre-wrap' : ''}>{value}</dd>
     </>
   );
 }

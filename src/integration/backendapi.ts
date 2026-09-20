@@ -7,7 +7,7 @@ import {
   PagedResponse, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
-  AgentAction, AgentStepName, AgentStepStatus, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
+  AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
   DiagnosticIntegration, ListeningObservation, MarketingInsight,
   MarketingObjective, ObservationStatus, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
@@ -186,6 +186,8 @@ class BackendApi {
   recordPublicationResult = (publicationId: string, body: { status: PublicationStatus; externalPostId?: string; externalUrl?: string; failureReason?: string }) =>
     this.put<Publication>(`/v1/marketing/publications/${publicationId}/result`, body);
   asset = (assetId: string) => this.get<ContentAsset>(`/v1/marketing/assets/${assetId}`);
+  updateAssetText = (assetId: string, body: AssetTextUpdate) =>
+    this.put<ContentAsset>(`/v1/marketing/assets/${assetId}/text`, body);
   attributionLink = (attributionLinkId: string) => this.get<AttributionLink>(`/v1/marketing/attribution/links/${attributionLinkId}`);
   campaignLinks = (campaignId: string) => this.get<AttributionLink[]>('/v1/marketing/attribution/links', { campaignId });
   createAttributionLink = (link: Partial<AttributionLink>) => this.post<AttributionLink>('/v1/marketing/attribution/links', link);
