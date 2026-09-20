@@ -26,7 +26,8 @@ export function RunScreen() {
   const workflow = useAsync(() => backendApi.agentWorkflow(), []);
   const pending = useAsync(() => backendApi.pendingActions(), []);
   const publications = useAsync(() => backendApi.publications('PENDING'), []);
-  const observations = useAsync(() => backendApi.observations('NEW'), []);
+  const observations = useAsync(() => backendApi.observations(), []);
+  const activeObservations = (observations.data ?? []).filter((o) => o.observationStatus !== 'IGNORED');
 
   const [executing, setExecuting] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
@@ -164,23 +165,26 @@ export function RunScreen() {
           </ul>
         </Step>
 
-        <Step n={3} title="Listen" status={<Badge tone={observations.data?.length ? 'info' : 'default'}>{observations.data?.length ?? 0} new</Badge>}
-          summary="Optional. Paste what landlords and tenants are actually asking (Reddit threads, comments, support emails); the next Plan reads every NEW observation."
+        <Step n={3} title="Listen" status={<Badge tone={activeObservations.length ? 'info' : 'default'}>{activeObservations.length} feeding Plan</Badge>}
+          summary="Optional. Paste what landlords and tenants are actually asking (Reddit threads, comments, support emails); the next Plan reads every observation from the last 30 days that you haven't marked Ignored."
           defaultOpen={false}>
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <div className="text-sm">
-              {observations.loading ? <Spinner /> : !observations.data?.length ? (
-                <Empty>Nothing new. The planner works without this, but relatable posts start with real questions.</Empty>
+              {observations.loading ? <Spinner /> : !activeObservations.length ? (
+                <Empty>Nothing yet. The planner works without this, but relatable posts start with real questions.</Empty>
               ) : (
                 <ul className="space-y-2">
-                  {observations.data.slice(0, 5).map((o) => (
+                  {activeObservations.slice(0, 5).map((o) => (
                     <li key={o.observationId} className="rounded-lg border border-slate-200 p-2 dark:border-white/10">
-                      <div className="text-xs text-slate-500">{o.channelType}{o.location ? ` · ${o.location}` : ''}</div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>{o.channelType}{o.location ? ` · ${o.location}` : ''}</span>
+                        <Badge tone={o.observationStatus === 'NEW' ? 'info' : 'default'}>{o.observationStatus}</Badge>
+                      </div>
                       {o.title && <div className="font-medium">{o.title}</div>}
                       <div className="line-clamp-2 text-slate-600 dark:text-slate-300">{o.snippet}</div>
                     </li>
                   ))}
-                  {observations.data.length > 5 && <li className="text-xs"><Link className="text-blue-600 hover:underline" to="/marketing/listening">All {observations.data.length} on the Listening screen</Link></li>}
+                  {activeObservations.length > 5 && <li className="text-xs"><Link className="text-blue-600 hover:underline" to="/marketing/listening">All {activeObservations.length} on the Listening screen</Link></li>}
                 </ul>
               )}
             </div>

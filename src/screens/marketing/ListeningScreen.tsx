@@ -16,7 +16,7 @@ const statusTone: Record<ObservationStatus, 'default' | 'good' | 'warn' | 'info'
 };
 
 export function ListeningScreen() {
-  const [status, setStatus] = useState<ObservationStatus | ''>('NEW');
+  const [status, setStatus] = useState<ObservationStatus | ''>('');
   const observations = useAsync(() => backendApi.observations(status || undefined), [status]);
   const channels = useAsync(() => backendApi.channels(), []);
 
@@ -29,7 +29,7 @@ export function ListeningScreen() {
     <>
       <PageHeader
         title="Listening"
-        subtitle="What the audience is saying. NEW observations are fed into the next daily plan; mark them reviewed or ignored once read."
+        subtitle="What the audience is saying. Every observation from the last 30 days feeds the next Plan unless you mark it Ignored; Reviewed just means you've read it."
       />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card
@@ -71,7 +71,7 @@ export function ListeningScreen() {
                       <Button variant="secondary" onClick={() => setObservationStatus(o.observationId, 'REVIEWED')}>Reviewed</Button>
                     )}
                     {o.observationStatus !== 'IGNORED' && (
-                      <Button variant="ghost" className="ml-1" onClick={() => setObservationStatus(o.observationId, 'IGNORED')}>Ignore</Button>
+                      <Button variant="ghost" className="ml-1" title="Stop feeding this into Plan" onClick={() => setObservationStatus(o.observationId, 'IGNORED')}>Ignore</Button>
                     )}
                     {o.observationStatus === 'IGNORED' && (
                       <Button variant="secondary" onClick={() => setObservationStatus(o.observationId, 'NEW')}>Restore</Button>
