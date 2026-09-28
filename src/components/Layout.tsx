@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import clsx from 'clsx';
-import { Activity, AlertTriangle, Building2, Megaphone, Moon, Sun, LogOut, ClipboardCheck, Send, BookOpen, ListChecks, PenLine, Ear, PlayCircle } from 'lucide-react';
+import { Activity, AlertTriangle, Building2, Megaphone, Moon, Sun, LogOut, ClipboardCheck, Send, BookOpen, ListChecks, PenLine, Ear, PlayCircle, MailCheck } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/themeProvider';
 
@@ -11,6 +11,7 @@ const nav = [
       { to: '/', label: 'Overview', icon: Activity, end: true },
       { to: '/errors', label: 'Traced Errors', icon: AlertTriangle },
       { to: '/platform', label: 'Clients & Admins', icon: Building2 },
+      { to: '/screening-domains', label: 'Screening Domains', icon: MailCheck },
     ],
   },
   {

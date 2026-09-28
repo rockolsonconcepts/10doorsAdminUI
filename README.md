@@ -10,6 +10,7 @@ this on every `/v1/admin/**` and `/v1/marketing/**` call, and the UI signs out a
 - **Overview** – public `/v1/health` probe (polled), DB status, uptime/version/profiles, traced-error counts, marketing agent state.
 - **Traced Errors** – paginated `/v1/admin/traced-errors` with time window + errorCode filter; detail shows stack trace and captured request payload.
 - **Clients & Admins** – administrators, clients (secrets redacted server-side), entitlements lookup by subject id.
+- **Screening Domains** – per-client email domains allowed or blocked from applicant screening (`/v1/admin/screening-domains`).
 - **Marketing Agent** – approval queue, publications (manual post + record result), agent activity audit log, reference data (objectives, campaigns, segments, channels, rules, insights), content charter.
 
 ## Using the console
@@ -39,6 +40,16 @@ see the stack trace and the captured request payload.
 Read-only view of administrators, OAuth clients (secrets redacted) and an entitlement lookup
 by subject id. Use it to confirm which account holds `SYSTEM_ADMIN` and which client is the
 platform default.
+
+### Screening Domains
+
+Controls which property-manager email domains can open applicant screening from 10doorsUI (and
+onboard as screening agents in ApplicantUI). Pick a client to see the allowed and blocked domains
+in effect and the rules behind them. If a client has any **Allow** rules they replace the backend's
+`screening.domains.default-allowed` list; **Block** rules are added to
+`screening.domains.default-blocked`, and a blocked domain is always rejected. Matching is on the
+exact domain (`kw.com` does not cover `sub.kw.com`). Removing a client's last Allow rule falls back
+to the properties defaults.
 
 ## Marketing Agent
 
