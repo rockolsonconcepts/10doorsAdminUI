@@ -82,7 +82,7 @@ export function ScreeningDomainsScreen() {
             <select className={inputClass} value={clientId} onChange={(e) => setClientId(e.target.value)}>
               {clients.data.map((c) => (
                 <option key={c.clientId} value={c.clientId}>
-                  {clientName(c.clientId)} ({c.clientId})
+                  {clientName(c.clientId) === c.clientId ? c.clientId : `${clientName(c.clientId)} (${c.clientId})`}
                 </option>
               ))}
             </select>
@@ -117,20 +117,24 @@ export function ScreeningDomainsScreen() {
 
             <Card title="Rules">
               <form className="mb-4 flex flex-wrap gap-2" onSubmit={onAdd}>
-                <input
-                  className={`${inputClass} max-w-xs`}
-                  placeholder="example.com"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                />
-                <select
-                  className={`${inputClass} w-32`}
-                  value={ruleType}
-                  onChange={(e) => setRuleType(e.target.value as ScreeningEmailDomainRuleType)}
-                >
-                  <option value="ALLOW">Allow</option>
-                  <option value="BLOCK">Block</option>
-                </select>
+                <div className="w-72">
+                  <input
+                    className={inputClass}
+                    placeholder="example.com"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                  />
+                </div>
+                <div className="w-32">
+                  <select
+                    className={inputClass}
+                    value={ruleType}
+                    onChange={(e) => setRuleType(e.target.value as ScreeningEmailDomainRuleType)}
+                  >
+                    <option value="ALLOW">Allow</option>
+                    <option value="BLOCK">Block</option>
+                  </select>
+                </div>
                 <Button type="submit" disabled={busy || !domain.trim()}>Save rule</Button>
               </form>
               <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
