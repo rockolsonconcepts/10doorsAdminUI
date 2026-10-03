@@ -4,7 +4,7 @@ import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
-import { ScreeningEmailDomainRule, ScreeningEmailDomainRuleType } from '@/model/admin';
+import { ScreeningApprovedEmail, ScreeningEmailDomainRule, ScreeningEmailDomainRuleType } from '@/model/admin';
 
 function DomainList({ domains, tone }: { domains: string[]; tone: 'good' | 'bad' }) {
   if (!domains.length) return <Empty>None</Empty>;
@@ -24,6 +24,7 @@ export function ScreeningDomainsScreen() {
   );
   const [domain, setDomain] = useState('');
   const [ruleType, setRuleType] = useState<ScreeningEmailDomainRuleType>('ALLOW');
+  const [approvedEmail, setApprovedEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -63,7 +64,19 @@ export function ScreeningDomainsScreen() {
     void run(() => backendApi.deleteScreeningDomainRule(rule.ruleId));
   }
 
+  async function onApproveEmail(e: FormEvent) {
+    e.preventDefault();
+    if (!approvedEmail.trim()) return;
+    if (await run(() => backendApi.approveScreeningEmail(clientId, approvedEmail.trim()))) setApprovedEmail('');
+  }
+
+  function onRemoveApprovedEmail(approval: ScreeningApprovedEmail) {
+    if (!window.confirm(`Remove the individual approval for ${approval.email}? It will fall back to the domain rules.`)) return;
+    void run(() => backendApi.removeScreeningApprovedEmail(approval.approvalId));
+  }
+
   const data = policy.data;
+  const approvedEmails = data?.approvedEmails ?? [];
   const clientName = (id: string) => {
     const c = clients.data?.find((x) => x.clientId === id);
     return c && typeof c.clientName === 'string' ? c.clientName : id;
@@ -73,7 +86,7 @@ export function ScreeningDomainsScreen() {
     <>
       <PageHeader
         title="Screening Email Domains"
-        subtitle="Which manager email domains may use applicant screening, per client. Blocked domains always win."
+        subtitle="Which manager emails may use applicant screening, per client. Blocked domains win over allowed domains; individually approved emails override both."
       />
       <div className="space-y-6">
         <Card title="Client">
@@ -152,6 +165,40 @@ export function ScreeningDomainsScreen() {
                       <td className="whitespace-nowrap">{formatDateTime(r.creationTimestamp)}</td>
                       <td className="text-right">
                         <Button variant="ghost" disabled={busy} onClick={() => onRemove(r)} title="Remove rule">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </Table>
+              )}
+            </Card>
+
+            <Card title="Individually approved emails">
+              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                These emails may use applicant screening regardless of the domain rules above, including blocked domains.
+              </p>
+              <form className="mb-4 flex flex-wrap gap-2" onSubmit={onApproveEmail}>
+                <div className="w-72">
+                  <input
+                    className={inputClass}
+                    type="email"
+                    placeholder="manager@example.com"
+                    value={approvedEmail}
+                    onChange={(e) => setApprovedEmail(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" disabled={busy || !approvedEmail.trim()}>Approve email</Button>
+              </form>
+              {!approvedEmails.length ? <Empty>No individually approved emails for this client.</Empty> : (
+                <Table head={<><th>Email</th><th>Added by</th><th>When</th><th></th></>}>
+                  {approvedEmails.map((a) => (
+                    <tr key={a.approvalId}>
+                      <td className="font-mono text-xs">{a.email}</td>
+                      <td className="font-mono text-xs">{a.createdBy ?? '—'}</td>
+                      <td className="whitespace-nowrap">{formatDateTime(a.creationTimestamp)}</td>
+                      <td className="text-right">
+                        <Button variant="ghost" disabled={busy} onClick={() => onRemoveApprovedEmail(a)} title="Remove approval">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
