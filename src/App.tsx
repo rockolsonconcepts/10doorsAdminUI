@@ -7,6 +7,7 @@ import { LoginScreen } from '@/screens/LoginScreen';
 import { OverviewScreen } from '@/screens/OverviewScreen';
 import { ErrorsScreen } from '@/screens/ErrorsScreen';
 import { PlatformScreen } from '@/screens/PlatformScreen';
+import { ScreeningDomainsScreen } from '@/screens/ScreeningDomainsScreen';
 import { ApprovalQueueScreen } from '@/screens/marketing/ApprovalQueueScreen';
 import { PublicationsScreen } from '@/screens/marketing/PublicationsScreen';
 import { ActivityScreen } from '@/screens/marketing/ActivityScreen';
@@ -25,6 +26,7 @@ function Gate() {
         <Route index element={<OverviewScreen />} />
         <Route path="errors" element={<ErrorsScreen />} />
         <Route path="platform" element={<PlatformScreen />} />
+        <Route path="screening-domains" element={<ScreeningDomainsScreen />} />
         <Route path="marketing" element={<RunScreen />} />
         <Route path="marketing/queue" element={<ApprovalQueueScreen />} />
         <Route path="marketing/publications" element={<PublicationsScreen />} />

@@ -4,7 +4,7 @@ import { TokenStorage } from './tokenStorage';
 import { TokenResponse, isExpired, parseTokenResponse } from '@/model/TokenResponse';
 import {
   AdminIdentity, AdministratorSummary, ClientConfiguration, Entitlement, HealthResponse,
-  PagedResponse, SystemStatus, TracedError, TracedErrorSummary,
+  PagedResponse, ScreeningDomainPolicy, ScreeningEmailDomainRuleType, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
   AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
@@ -146,6 +146,9 @@ class BackendApi {
   private post<T>(url: string, data?: unknown) {
     return this.request<T>({ method: 'post', url, data });
   }
+  private delete<T>(url: string) {
+    return this.request<T>({ method: 'delete', url });
+  }
 
   // ---- public health (no auth) -----------------------------------------
 
@@ -174,6 +177,12 @@ class BackendApi {
   administrators = () => this.get<AdministratorSummary[]>('/v1/admin/administrators');
   clients = () => this.get<ClientConfiguration[]>('/v1/admin/clients');
   entitlements = (userId: string) => this.get<Entitlement[]>('/v1/admin/entitlements', { userId });
+  screeningDomainPolicy = (clientId: string) =>
+    this.get<ScreeningDomainPolicy>('/v1/admin/screening-domains', { clientId });
+  upsertScreeningDomainRule = (clientId: string, emailDomain: string, ruleType: ScreeningEmailDomainRuleType) =>
+    this.post<ScreeningDomainPolicy>('/v1/admin/screening-domains', { clientId, emailDomain, ruleType });
+  deleteScreeningDomainRule = (ruleId: string) =>
+    this.delete<ScreeningDomainPolicy>(`/v1/admin/screening-domains/${encodeURIComponent(ruleId)}`);
 
   // ---- marketing agent --------------------------------------------------
 

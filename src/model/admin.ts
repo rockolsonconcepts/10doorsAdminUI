@@ -92,3 +92,22 @@ export interface Entitlement {
   role: string;
   [key: string]: unknown;
 }
+
+export type ScreeningEmailDomainRuleType = 'ALLOW' | 'BLOCK';
+
+export interface ScreeningEmailDomainRule {
+  ruleId: string;
+  clientId: string;
+  emailDomain: string;
+  ruleType: ScreeningEmailDomainRuleType;
+  createdBy: string | null;
+  creationTimestamp: number;
+}
+
+export interface ScreeningDomainPolicy {
+  clientId: string;
+  allowedDomainsSource: 'CLIENT_RULES' | 'DEFAULTS';
+  effectiveAllowedDomains: string[];
+  effectiveBlockedDomains: string[];
+  rules: ScreeningEmailDomainRule[];
+}
