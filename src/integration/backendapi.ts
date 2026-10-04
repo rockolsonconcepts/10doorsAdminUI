@@ -75,7 +75,12 @@ class BackendApi {
   }
 
   async login(username: string, password: string): Promise<TokenResponse> {
-    const params = new URLSearchParams({ grant_type: 'password', username, password });
+    const params = new URLSearchParams({
+      grant_type: 'password',
+      username,
+      password,
+      entityType: 'ADMINISTRATOR',
+    });
     const token = await this.tokenCall(params);
     TokenStorage.persistUserToken(token);
     return token;
