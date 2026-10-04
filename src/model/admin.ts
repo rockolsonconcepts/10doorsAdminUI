@@ -104,10 +104,19 @@ export interface ScreeningEmailDomainRule {
   creationTimestamp: number;
 }
 
+export interface ScreeningApprovedEmail {
+  approvalId: string;
+  clientId: string;
+  email: string;
+  createdBy: string | null;
+  creationTimestamp: number;
+}
+
 export interface ScreeningDomainPolicy {
   clientId: string;
   allowedDomainsSource: 'CLIENT_RULES' | 'DEFAULTS';
   effectiveAllowedDomains: string[];
   effectiveBlockedDomains: string[];
   rules: ScreeningEmailDomainRule[];
+  approvedEmails?: ScreeningApprovedEmail[];
 }

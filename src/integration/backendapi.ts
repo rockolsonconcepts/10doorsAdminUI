@@ -188,6 +188,10 @@ class BackendApi {
     this.post<ScreeningDomainPolicy>('/v1/admin/screening-domains', { clientId, emailDomain, ruleType });
   deleteScreeningDomainRule = (ruleId: string) =>
     this.delete<ScreeningDomainPolicy>(`/v1/admin/screening-domains/${encodeURIComponent(ruleId)}`);
+  approveScreeningEmail = (clientId: string, email: string) =>
+    this.post<ScreeningDomainPolicy>('/v1/admin/screening-domains/approved-emails', { clientId, email });
+  removeScreeningApprovedEmail = (approvalId: string) =>
+    this.delete<ScreeningDomainPolicy>(`/v1/admin/screening-domains/approved-emails/${encodeURIComponent(approvalId)}`);
 
   // ---- marketing agent --------------------------------------------------
 
