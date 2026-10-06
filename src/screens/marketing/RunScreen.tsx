@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Check, ChevronDown, ChevronRight, Circle, Loader2, Play, RefreshCw } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import clsx from 'clsx';
+import { ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, Info, Loader2, Play, RefreshCw, X } from 'lucide-react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
 import { AgentStepName, AgentStepStatus, Channel, Publication } from '@/model/marketing';
@@ -16,6 +17,16 @@ const PUBLISH_TYPES = ['PUBLISH'];
 const EXECUTE_POLL_MS = 3000;
 const EXECUTE_POLL_MAX_MS = 90_000;
 
+const TABS = ['setup', 'observe', 'listen', 'plan', 'draft', 'publish', 'learn'] as const;
+type TabKey = (typeof TABS)[number];
+const isTab = (v: string | null): v is TabKey => TABS.includes(v as TabKey);
+
+/** Where an approval's result shows up, so the screen can point there without switching tabs. */
+interface NudgeTarget { to: 'draft' | 'publish'; working: string; noun: string; }
+interface Nudge extends NudgeTarget { baseline: number; }
+const DRAFT_NUDGE: NudgeTarget = { to: 'draft', working: 'Drafting your approved idea…', noun: 'draft' };
+const PUBLISH_NUDGE: NudgeTarget = { to: 'publish', working: 'Creating the publication and its tracked link…', noun: 'publish approval' };
+
 export function RunScreen() {
   const system = useAsync(() => backendApi.system(), []);
   const objectives = useAsync(() => backendApi.objectives(), []);
@@ -25,7 +36,11 @@ export function RunScreen() {
   const charter = useAsync(() => backendApi.charter(), []);
   const workflow = useAsync(() => backendApi.agentWorkflow(), []);
   const pending = useAsync(() => backendApi.pendingActions(), []);
-  const publications = useAsync(() => backendApi.publications('PENDING'), []);
+  // PENDING = awaiting publish approval; SCHEDULED = publish approved, waiting for you to post it manually.
+  const publications = useAsync(async () => {
+    const [pendingPubs, scheduled] = await Promise.all([backendApi.publications('PENDING'), backendApi.publications('SCHEDULED')]);
+    return [...scheduled, ...pendingPubs];
+  }, []);
   const observations = useAsync(() => backendApi.observations(), []);
   const activeObservations = (observations.data ?? []).filter((o) => o.observationStatus !== 'IGNORED');
 
@@ -79,9 +94,21 @@ export function RunScreen() {
     pollTimer.current = window.setTimeout(poll, EXECUTE_POLL_MS);
   }
 
-  function onReviewed(approved: boolean) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('step');
+  const tab = isTab(requestedTab) ? requestedTab : null;
+  const [nudge, setNudge] = useState<Nudge | null>(null);
+
+  function selectTab(key: TabKey) {
+    if (nudge?.to === key) setNudge(null);
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('step', key); return next; });
+  }
+
+  function onReviewed(approved: boolean, next?: NudgeTarget) {
     pending.reload();
-    if (approved) void runStep('EXECUTE', 'Executing your approval…');
+    if (!approved) return;
+    setNudge(next ? { ...next, baseline: countFor(next.to) } : null);
+    void runStep('EXECUTE', 'Executing your approval…');
   }
 
   const agent = system.data?.marketingAgent;
@@ -95,6 +122,7 @@ export function RunScreen() {
   const toPost = publications.data ?? [];
   const channelList = channels.data ?? [];
   const channelFor = (id: string | null) => channelList.find((c) => c.channelId === id) ?? null;
+  const countFor = (to: NudgeTarget['to']) => (to === 'draft' ? drafts.length : publishApprovals.length);
 
   const checklist: ChecklistItem[] = [
     { label: 'Marketing agent enabled', ok: agent?.enabled ?? null, required: true, to: '/', hint: 'Set marketing.agent.enabled=true in the backend and redeploy.' },
@@ -111,11 +139,38 @@ export function RunScreen() {
   const loadError = [system, objectives, segments, channels, campaigns, charter, workflow, pending, publications, observations]
     .map((s) => s.error).find((e) => e) ?? null;
 
+  // Open on the step that is blocking you: Setup if incomplete, else the furthest-downstream queue, else Plan.
+  const queuesLoaded = !!pending.data && !!publications.data;
+  const autoTab: TabKey | null = loadError ? 'setup' : loadingSetup || !queuesLoaded ? null
+    : !requiredDone ? 'setup'
+    : publishApprovals.length + toPost.length > 0 ? 'publish'
+    : drafts.length > 0 ? 'draft'
+    : ideas.length > 0 ? 'plan'
+    : learnItems.length > 0 ? 'learn'
+    : 'plan';
+  useEffect(() => {
+    if (tab || !autoTab) return;
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('step', autoTab); return next; }, { replace: true });
+  }, [tab, autoTab, setSearchParams]);
+  const active = tab ?? autoTab;
+
+  const failed = (name: AgentStepName) => stepFor(name)?.lastOk === false;
+  const tabs: { key: TabKey; title: string; count?: number; alert?: boolean }[] = [
+    { key: 'setup', title: 'Setup', alert: !loadingSetup && !requiredDone },
+    { key: 'observe', title: 'Observe', alert: failed('OBSERVE') },
+    { key: 'listen', title: 'Listen' },
+    { key: 'plan', title: 'Plan', count: ideas.length, alert: failed('PLAN') },
+    { key: 'draft', title: 'Draft', count: drafts.length },
+    { key: 'publish', title: 'Publish', count: publishApprovals.length + toPost.length },
+    { key: 'learn', title: 'Learn', count: learnItems.length, alert: failed('LEARN') },
+  ];
+  const nudgeTitle = nudge ? tabs.find((t) => t.key === nudge.to)!.title : '';
+
   return (
     <>
       <PageHeader
         title="Run the agent"
-        subtitle="The whole loop, top to bottom. Each step shows what it is waiting on and the one thing you can do about it."
+        subtitle="The whole loop, one step per tab. Each step shows what it is waiting on and the one thing you can do about it."
         actions={
           <Button variant="secondary" onClick={() => { reloadQueue(); observations.reload(); system.reload(); }}>
             <RefreshCw className="h-4 w-4" /> Refresh
@@ -123,125 +178,150 @@ export function RunScreen() {
         }
       />
       <ErrorNote message={loadError ?? runError} />
-      {executing && (
+      {executing && !nudge && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
           <Loader2 className="h-4 w-4 animate-spin" /> {executing} This screen refreshes when the step finishes.
         </div>
       )}
+      {nudge && (
+        <NudgeBanner
+          working={!!executing || pending.loading ? nudge.working : null}
+          added={countFor(nudge.to) - nudge.baseline}
+          noun={nudge.noun}
+          tabTitle={nudgeTitle}
+          onGo={() => selectTab(nudge.to)}
+          onDismiss={() => setNudge(null)}
+        />
+      )}
 
-      <div className="space-y-4">
-        <Step n={1} title="Setup" status={loadingSetup ? <Badge>Checking…</Badge> : requiredDone ? <Badge tone="good">Ready</Badge> : <Badge tone="warn">Incomplete</Badge>}
-          summary={requiredDone ? 'Everything the planner needs exists. Optional items below are worth doing.' : 'The planner skips until every required item is green.'}
-          defaultOpen={!requiredDone}>
-          <ul className="space-y-2 text-sm">
-            {checklist.map((c) => (
-              <li key={c.label} className="flex items-start gap-2">
-                <StatusDot ok={c.ok} required={c.required} />
-                <div className="flex-1">
-                  <Link to={c.to} className="hover:underline">{c.label}</Link>
-                  {!c.required && <span className="ml-2 text-xs text-slate-400">optional</span>}
-                  {c.ok === false && <div className="text-xs text-slate-500">{c.hint}</div>}
-                </div>
-                {c.ok === false && <Link to={c.to} className="text-xs text-blue-600 hover:underline">Fix <ArrowRight className="inline h-3 w-3" /></Link>}
-              </li>
-            ))}
-          </ul>
-        </Step>
-
-        <Step n={2} title="Observe" status={stepFor('OBSERVE')?.lastOk === false ? <Badge tone="bad">Last run failed</Badge> : agent?.googleAnalyticsConfigured ? <Badge tone="good">App + GA4</Badge> : <Badge>App metrics only</Badge>}
-          summary="Snapshots your app's numbers (registrations, units, leases, subscriptions) and GA4 traffic if configured. Plan reads the recent snapshots; Learn compares them against what was posted. Runs on its own; run it now if you want fresh numbers before planning."
-          defaultOpen={stepFor('OBSERVE')?.lastOk === false}
-          aside={<StepRunner step={stepFor('OBSERVE')} busy={!!executing} onRun={() => runStep('OBSERVE', 'Collecting metrics…')} />}>
-          <ul className="space-y-2 text-sm">
-            <li className="flex items-start gap-2"><StatusDot ok={agent ? true : null} required /><div>App metrics — always collected from the backend database.</div></li>
-            <li className="flex items-start gap-2">
-              <StatusDot ok={agent?.googleAnalyticsConfigured ?? null} required={false} />
-              <div className="flex-1">Google Analytics 4 <span className="ml-2 text-xs text-slate-400">optional</span>
-                {agent?.googleAnalyticsConfigured === false && <div className="text-xs text-slate-500">Set marketing.agent.google-analytics.property-id and credentials-json, then use Test connection on Overview.</div>}
-              </div>
-              {agent?.googleAnalyticsConfigured === false && <Link to="/" className="text-xs text-blue-600 hover:underline">Fix <ArrowRight className="inline h-3 w-3" /></Link>}
-            </li>
-            {stepFor('OBSERVE')?.lastError && <li className="text-xs text-red-600">{stepFor('OBSERVE')!.lastError}</li>}
-          </ul>
-        </Step>
-
-        <Step n={3} title="Listen" status={<Badge tone={activeObservations.length ? 'info' : 'default'}>{activeObservations.length} feeding Plan</Badge>}
-          summary="Optional. Paste what landlords and tenants are actually asking (Reddit threads, comments, support emails); the next Plan reads every observation from the last 30 days that you haven't marked Ignored."
-          defaultOpen={false}>
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-            <div className="text-sm">
-              {observations.loading ? <Spinner /> : !activeObservations.length ? (
-                <Empty>Nothing yet. The planner works without this, but relatable posts start with real questions.</Empty>
-              ) : (
-                <ul className="space-y-2">
-                  {activeObservations.slice(0, 5).map((o) => (
-                    <li key={o.observationId} className="rounded-lg border border-slate-200 p-2 dark:border-white/10">
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>{o.channelType}{o.location ? ` · ${o.location}` : ''}</span>
-                        <Badge tone={o.observationStatus === 'NEW' ? 'info' : 'default'}>{o.observationStatus}</Badge>
-                      </div>
-                      {o.title && <div className="font-medium">{o.title}</div>}
-                      <div className="line-clamp-2 text-slate-600 dark:text-slate-300">{o.snippet}</div>
-                    </li>
-                  ))}
-                  {activeObservations.length > 5 && <li className="text-xs"><Link className="text-blue-600 hover:underline" to="/marketing/listening">All {activeObservations.length} on the Listening screen</Link></li>}
-                </ul>
-              )}
-            </div>
-            <ObservationForm channels={channelList} onSaved={observations.reload} />
-          </div>
-        </Step>
-
-        <Step n={4} title="Plan" status={<QueueBadge count={ideas.length} noun="idea" />}
-          summary="Turns your objective, segments, charter and observations into content ideas. Approve the ones worth writing."
-          defaultOpen
-          aside={<StepRunner step={stepFor('PLAN')} busy={!!executing} onRun={() => runStep('PLAN', 'Planning ideas…')} />}>
-          {ideas.length === 0 ? (
-            <Empty>{requiredDone ? 'No ideas waiting. Run Plan now or wait for the daily schedule.' : 'Finish Setup first; Plan skips without an ACTIVE campaign and an enabled channel.'}</Empty>
-          ) : (
-            <div className="space-y-3">{ideas.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={onReviewed} />)}</div>
-          )}
-        </Step>
-
-        <Step n={5} title="Draft" status={<QueueBadge count={drafts.length} noun="draft" />}
-          summary="Approved ideas become one draft per channel. Approving a draft creates the publication and its tracked link."
-          defaultOpen>
-          {drafts.length === 0 ? (
-            <Empty>No drafts waiting. They appear here within moments of approving an idea.</Empty>
-          ) : (
-            <div className="space-y-3">{drafts.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={onReviewed} />)}</div>
-          )}
-        </Step>
-
-        <Step n={6} title="Publish" status={<QueueBadge count={publishApprovals.length + toPost.length} noun="item" />}
-          summary="Approve the publish action, then post the text yourself with its tracked link and record the live URL. All channels are manual today."
-          defaultOpen>
-          {publishApprovals.length > 0 && (
-            <div className="mb-4 space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Awaiting publish approval</div>
-              {publishApprovals.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={onReviewed} />)}
-            </div>
-          )}
-          {toPost.length > 0 && (
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ready to post</div>
-              {toPost.map((p, i) => <PostCard key={p.publicationId} publication={p} channel={channelFor(p.channelId)} defaultOpen={i === 0} onSaved={publications.reload} />)}
-            </div>
-          )}
-          {publishApprovals.length === 0 && toPost.length === 0 && <Empty>Nothing to post. Approved drafts land here.</Empty>}
-        </Step>
-
-        <Step n={7} title="Learn" status={<QueueBadge count={learnItems.length} noun="proposal" />}
-          summary="Weekly, once posts have results: the agent proposes insights, strategy rules and Content Charter edits from what performed and from how you rewrote its drafts. Approved items steer the next plans."
-          defaultOpen={learnItems.length > 0}
-          aside={<StepRunner step={stepFor('LEARN')} busy={!!executing} onRun={() => runStep('LEARN', 'Analysing results…')} />}>
-          {learnItems.length === 0 ? (
-            <Empty>No proposals. Learn needs published posts with recorded URLs; it skips otherwise.</Empty>
-          ) : (
-            <div className="space-y-3">{learnItems.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={onReviewed} />)}</div>
-          )}
-        </Step>
+      <div role="tablist" aria-label="Agent steps" className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-white/10">
+        {tabs.map((t, i) => (
+          <StepTab key={t.key} n={i + 1} title={t.title} count={t.count} alert={t.alert} selected={active === t.key} onSelect={() => selectTab(t.key)} />
+        ))}
       </div>
+
+      {!active ? <Spinner /> : (
+        <>
+          {active === 'setup' && (
+            <Step n={1} title="Setup" status={loadingSetup ? <Badge>Checking…</Badge> : requiredDone ? <Badge tone="good">Ready</Badge> : <Badge tone="warn">Incomplete</Badge>}
+              summary={requiredDone ? 'Everything the planner needs exists. Optional items below are worth doing.' : 'The planner skips until every required item is green.'}>
+              <ul className="space-y-2 text-sm">
+                {checklist.map((c) => (
+                  <li key={c.label} className="flex items-start gap-2">
+                    <StatusDot ok={c.ok} required={c.required} />
+                    <div className="flex-1">
+                      <Link to={c.to} className="hover:underline">{c.label}</Link>
+                      {!c.required && <span className="ml-2 text-xs text-slate-400">optional</span>}
+                      {c.ok === false && <div className="text-xs text-slate-500">{c.hint}</div>}
+                    </div>
+                    {c.ok === false && <Link to={c.to} className="text-xs text-blue-600 hover:underline">Fix <ArrowRight className="inline h-3 w-3" /></Link>}
+                  </li>
+                ))}
+              </ul>
+            </Step>
+          )}
+
+          {active === 'observe' && (
+            <Step n={2} title="Observe" status={stepFor('OBSERVE')?.lastOk === false ? <Badge tone="bad">Last run failed</Badge> : agent?.googleAnalyticsConfigured ? <Badge tone="good">App + GA4</Badge> : <Badge>App metrics only</Badge>}
+              summary="Snapshots your app's numbers (registrations, units, leases, subscriptions) and GA4 traffic if configured. Plan reads the recent snapshots; Learn compares them against what was posted. Runs on its own; run it now if you want fresh numbers before planning."
+              aside={<StepRunner step={stepFor('OBSERVE')} busy={!!executing} onRun={() => runStep('OBSERVE', 'Collecting metrics…')} />}>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start gap-2"><StatusDot ok={agent ? true : null} required /><div>App metrics — always collected from the backend database.</div></li>
+                <li className="flex items-start gap-2">
+                  <StatusDot ok={agent?.googleAnalyticsConfigured ?? null} required={false} />
+                  <div className="flex-1">Google Analytics 4 <span className="ml-2 text-xs text-slate-400">optional</span>
+                    {agent?.googleAnalyticsConfigured === false && <div className="text-xs text-slate-500">Set marketing.agent.google-analytics.property-id and credentials-json, then use Test connection on Overview.</div>}
+                  </div>
+                  {agent?.googleAnalyticsConfigured === false && <Link to="/" className="text-xs text-blue-600 hover:underline">Fix <ArrowRight className="inline h-3 w-3" /></Link>}
+                </li>
+                {stepFor('OBSERVE')?.lastError && <li className="text-xs text-red-600">{stepFor('OBSERVE')!.lastError}</li>}
+              </ul>
+            </Step>
+          )}
+
+          {active === 'listen' && (
+            <Step n={3} title="Listen" status={<Badge tone={activeObservations.length ? 'info' : 'default'}>{activeObservations.length} feeding Plan</Badge>}
+              summary="Optional. Paste what landlords and tenants are actually asking (Reddit threads, comments, support emails); the next Plan reads every observation from the last 30 days that you haven't marked Ignored.">
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                <div className="text-sm">
+                  {observations.loading ? <Spinner /> : !activeObservations.length ? (
+                    <Empty>Nothing yet. The planner works without this, but relatable posts start with real questions.</Empty>
+                  ) : (
+                    <ul className="space-y-2">
+                      {activeObservations.slice(0, 5).map((o) => (
+                        <li key={o.observationId} className="rounded-lg border border-slate-200 p-2 dark:border-white/10">
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span>{o.channelType}{o.location ? ` · ${o.location}` : ''}</span>
+                            <Badge tone={o.observationStatus === 'NEW' ? 'info' : 'default'}>{o.observationStatus}</Badge>
+                          </div>
+                          {o.title && <div className="font-medium">{o.title}</div>}
+                          <div className="line-clamp-2 text-slate-600 dark:text-slate-300">{o.snippet}</div>
+                        </li>
+                      ))}
+                      {activeObservations.length > 5 && <li className="text-xs"><Link className="text-blue-600 hover:underline" to="/marketing/listening">All {activeObservations.length} on the Listening screen</Link></li>}
+                    </ul>
+                  )}
+                </div>
+                <ObservationForm channels={channelList} onSaved={observations.reload} />
+              </div>
+            </Step>
+          )}
+
+          {active === 'plan' && (
+            <Step n={4} title="Plan" status={<QueueBadge count={ideas.length} noun="idea" />}
+              summary="Turns your objective, segments, charter and observations into content ideas. Approve the ones worth writing; each approved idea becomes drafts in the Draft tab."
+              aside={<StepRunner step={stepFor('PLAN')} busy={!!executing} onRun={() => runStep('PLAN', 'Planning ideas…')} />}>
+              {ideas.length === 0 ? (
+                <Empty>{requiredDone ? 'No ideas waiting. Run Plan now or wait for the daily schedule.' : 'Finish Setup first; Plan skips without an ACTIVE campaign and an enabled channel.'}</Empty>
+              ) : (
+                <div className="space-y-3">{ideas.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={(ok) => onReviewed(ok, DRAFT_NUDGE)} />)}</div>
+              )}
+            </Step>
+          )}
+
+          {active === 'draft' && (
+            <Step n={5} title="Draft" status={<QueueBadge count={drafts.length} noun="draft" />}
+              summary="Approved ideas become one draft per channel. Approving a draft creates the publication and its tracked link in the Publish tab.">
+              {drafts.length === 0 ? (
+                <Empty>No drafts waiting. They appear here within moments of approving an idea.</Empty>
+              ) : (
+                <div className="space-y-3">{drafts.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={(ok) => onReviewed(ok, PUBLISH_NUDGE)} />)}</div>
+              )}
+            </Step>
+          )}
+
+          {active === 'publish' && (
+            <Step n={6} title="Publish" status={<QueueBadge count={publishApprovals.length + toPost.length} noun="item" />}
+              summary="Approve the publish action, then post the text yourself with its tracked link and record the live URL. All channels are manual today.">
+              {publishApprovals.length > 0 && (
+                <div className="mb-4 space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Awaiting publish approval</div>
+                  {publishApprovals.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={(ok) => onReviewed(ok)} />)}
+                </div>
+              )}
+              {toPost.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ready to post</div>
+                  {toPost.map((p, i) => <PostCard key={p.publicationId} publication={p} channel={channelFor(p.channelId)} defaultOpen={i === 0} onSaved={publications.reload} />)}
+                </div>
+              )}
+              {publishApprovals.length === 0 && toPost.length === 0 && <Empty>Nothing to post. Approved drafts land here.</Empty>}
+            </Step>
+          )}
+
+          {active === 'learn' && (
+            <Step n={7} title="Learn" status={<QueueBadge count={learnItems.length} noun="proposal" />}
+              summary="Weekly, once posts have results: the agent proposes insights, strategy rules and Content Charter edits from what performed and from how you rewrote its drafts. Approved items steer the next plans."
+              aside={<StepRunner step={stepFor('LEARN')} busy={!!executing} onRun={() => runStep('LEARN', 'Analysing results…')} />}>
+              {learnItems.length === 0 ? (
+                <Empty>No proposals. Learn needs published posts with recorded URLs; it skips otherwise.</Empty>
+              ) : (
+                <div className="space-y-3">{learnItems.map((a) => <ActionCard key={a.actionId} action={a} channels={channelList} onReviewed={(ok) => onReviewed(ok)} />)}</div>
+              )}
+            </Step>
+          )}
+        </>
+      )}
 
       <p className="mt-6 text-xs text-slate-500">
         Execute runs {stepFor('EXECUTE') ? describeCron(stepFor('EXECUTE')!.cron) : 'every few minutes'} in the background; this screen runs Execute for you right after each approval.
@@ -270,15 +350,53 @@ function QueueBadge({ count, noun }: { count: number; noun: string }) {
   return <Badge tone="warn">{count} {noun}{count === 1 ? '' : 's'} waiting</Badge>;
 }
 
-function Step({ n, title, status, summary, aside, defaultOpen, children }: {
-  n: number; title: string; status: ReactNode; summary: string; aside?: ReactNode; defaultOpen: boolean; children: ReactNode;
+function StepTab({ n, title, count, alert, selected, onSelect }: {
+  n: number; title: string; count?: number; alert?: boolean; selected: boolean; onSelect: () => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
+  return (
+    <button type="button" role="tab" aria-selected={selected} onClick={onSelect}
+      className={clsx(
+        '-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium',
+        selected ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:hover:text-slate-200',
+      )}>
+      <span className={clsx('flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
+        selected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300')}>{n}</span>
+      {title}
+      {!!count && <span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">{count}</span>}
+      {alert && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="needs attention" />}
+    </button>
+  );
+}
+
+function NudgeBanner({ working, added, noun, tabTitle, onGo, onDismiss }: {
+  working: string | null; added: number; noun: string; tabTitle: string; onGo: () => void; onDismiss: () => void;
+}) {
+  const tone = working ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
+    : added > 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+    : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300';
+  return (
+    <div className={clsx('mb-4 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm', tone)}>
+      {working ? <Loader2 className="h-4 w-4 animate-spin" /> : added > 0 ? <CheckCircle2 className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+      <span className="flex-1">
+        {working ? working
+          : added > 0 ? `${added} new ${noun}${added === 1 ? '' : 's'} ready in ${tabTitle}.`
+          : `Nothing new in ${tabTitle} yet. Execute may still be working; use Refresh in a minute.`}
+      </span>
+      <button type="button" onClick={onGo} className="inline-flex items-center gap-1 font-medium hover:underline">
+        Go to {tabTitle} <ArrowRight className="h-4 w-4" />
+      </button>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+    </div>
+  );
+}
+
+function Step({ n, title, status, summary, aside, children }: {
+  n: number; title: string; status: ReactNode; summary: string; aside?: ReactNode; children: ReactNode;
+}) {
   return (
     <Card className="overflow-hidden">
-      <div className="-m-5">
-        <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-3 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-white/5">
+      <div role="tabpanel" aria-label={title} className="-m-5">
+        <div className="flex items-start gap-3 px-5 py-4">
           <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">{n}</span>
           <span className="flex-1">
             <span className="flex items-center gap-2">
@@ -287,14 +405,11 @@ function Step({ n, title, status, summary, aside, defaultOpen, children }: {
             </span>
             <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{summary}</span>
           </span>
-          {open ? <ChevronDown className="mt-1 h-4 w-4 text-slate-400" /> : <ChevronRight className="mt-1 h-4 w-4 text-slate-400" />}
-        </button>
-        {open && (
-          <div className="border-t border-slate-200 px-5 py-4 dark:border-white/10">
-            {aside && <div className="mb-4">{aside}</div>}
-            {children}
-          </div>
-        )}
+        </div>
+        <div className="border-t border-slate-200 px-5 py-4 dark:border-white/10">
+          {aside && <div className="mb-4">{aside}</div>}
+          {children}
+        </div>
       </div>
     </Card>
   );
