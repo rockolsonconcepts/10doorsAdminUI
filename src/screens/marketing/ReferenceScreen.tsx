@@ -98,7 +98,7 @@ export function ReferenceScreen() {
                   <td>{c.name}{c.handle && <span className="ml-1 text-xs text-slate-500">{c.handle}</span>}</td>
                   <td><Badge>{c.channelType}</Badge></td>
                   <td>
-                    <label className="inline-flex items-center gap-1 text-sm" title="Checked: you post by hand and record the URL (caps advisory). Unchecked: the agent posts via the channel adapter after approval.">
+                    <label className="inline-flex items-center gap-1 text-sm" title="Checked: you post by hand and record the URL (posting caps do not apply). Unchecked: the agent posts via the channel adapter after approval, subject to posting caps.">
                       <input type="checkbox" checked={c.manualPosting} onChange={(e) => updateChannel(c.channelId, { manualPosting: e.target.checked })} />
                       Manual
                     </label>

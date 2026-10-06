@@ -182,8 +182,8 @@ export function AddChannelForm({ onCreated }: { onCreated: () => void }) {
         <span>
           <span className="font-medium">Manual posting</span>
           <span className="block text-xs text-slate-500">
-            Checked: the agent drafts and queues the post; you publish it yourself and record the URL. Posting caps are advisory.
-            Unchecked: the agent posts through the channel's adapter after you approve — publications fail visibly if no adapter exists for this type yet.
+            Checked: the agent drafts and queues the post; you publish it yourself and record the URL. Posting caps and location rules do not apply.
+            Unchecked: the agent posts through the channel's adapter after you approve, and posting caps are checked at that moment — the publication fails visibly if a cap is reached or no adapter exists for this type yet.
           </span>
         </span>
       </label>
