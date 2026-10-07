@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 export function Card({ title, actions, children, className }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={clsx('rounded-xl border border-slate-200 bg-white shadow-card dark:border-white/10 dark:bg-[#16161D]', className)}>
+    <section className={clsx('min-w-0 rounded-xl border border-slate-200 bg-white shadow-card dark:border-white/10 dark:bg-[#16161D]', className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-white/10">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
