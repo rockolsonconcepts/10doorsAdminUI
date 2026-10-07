@@ -145,7 +145,13 @@ export interface ListeningObservation {
   createdAtMillis: number;
 }
 
-export type AttributionScope = 'PUBLICATION' | 'CAMPAIGN';
+export type AttributionScope = 'PUBLICATION' | 'CAMPAIGN' | 'CHANNEL';
+
+/** Clicks on a channel profile link credited to one campaign; campaignId is null when no campaign was active. */
+export interface CampaignClickCount {
+  campaignId: string | null;
+  clicks: number;
+}
 
 export interface AttributionLink {
   attributionLinkId: string;

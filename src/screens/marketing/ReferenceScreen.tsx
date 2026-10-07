@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Campaign, Channel } from '@/model/marketing';
+import { AttributionLink, Campaign, Channel } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 import { AddCampaignForm, AddChannelForm, AddObjectiveForm, AddSegmentForm } from './ReferenceForms';
+import { CopyButton } from './TrackedLinkGuide';
 
 export function ReferenceScreen() {
   const objectives = useAsync(() => backendApi.objectives(), []);
@@ -12,6 +13,17 @@ export function ReferenceScreen() {
   const channels = useAsync(() => backendApi.channels(), []);
   const rules = useAsync(() => backendApi.rules(), []);
   const insights = useAsync(() => backendApi.insights(), []);
+  const [campaignError, setCampaignError] = useState<string | null>(null);
+
+  async function setCampaignStatus(campaignId: string, status: string) {
+    setCampaignError(null);
+    try {
+      await backendApi.setCampaignStatus(campaignId, status);
+      campaigns.reload();
+    } catch (e) {
+      setCampaignError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   async function updateChannel(channelId: string, changes: Partial<Pick<Channel, 'enabled' | 'manualPosting'>>) {
     const current = channels.data?.find((c) => c.channelId === channelId);
@@ -57,6 +69,7 @@ export function ReferenceScreen() {
         </Card>
         <Card title="Campaigns">
           <ErrorNote message={campaigns.error} />
+          <ErrorNote message={campaignError} />
           {campaigns.loading ? <Spinner /> : !campaigns.data?.length ? <Empty>None yet — add one so the planner has something to file ideas under.</Empty> : (
             <Table head={<><th>Name</th><th>Hypothesis</th><th>Status</th><th></th></>}>
               {campaigns.data.map((c) => (
@@ -64,7 +77,7 @@ export function ReferenceScreen() {
                   <td>{c.name}</td>
                   <td className="max-w-xs truncate" title={c.hypothesis ?? ''}>{c.hypothesis}</td>
                   <td><Badge tone={c.campaignStatus === 'ACTIVE' ? 'good' : 'default'}>{c.campaignStatus}</Badge></td>
-                  <td><Button variant="secondary" onClick={() => backendApi.setCampaignStatus(c.campaignId, c.campaignStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE').then(campaigns.reload)}>{c.campaignStatus === 'ACTIVE' ? 'Pause' : 'Activate'}</Button></td>
+                  <td><Button variant="secondary" onClick={() => setCampaignStatus(c.campaignId, c.campaignStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{c.campaignStatus === 'ACTIVE' ? 'Pause' : 'Activate'}</Button></td>
                 </tr>
               ))}
             </Table>
@@ -133,6 +146,11 @@ export function ReferenceScreen() {
             </Table>
           )}
         </Card>
+        <Card title="Profile links (one per channel)">
+          {channels.loading || campaigns.loading ? <Spinner /> : !channels.data?.length ? <Empty>Add a channel first.</Empty> : (
+            <ProfileLinks channels={channels.data} campaigns={campaigns.data ?? []} />
+          )}
+        </Card>
         <Card title="Tracked links (campaign / bio)">
           {campaigns.loading ? <Spinner /> : !campaigns.data?.length ? <Empty>Create a campaign first.</Empty> : <CampaignLinks campaigns={campaigns.data} />}
         </Card>
@@ -153,6 +171,92 @@ export function ReferenceScreen() {
         </Card>
       </div>
     </>
+  );
+}
+
+function ProfileLinks({ channels, campaigns }: { channels: Channel[]; campaigns: Campaign[] }) {
+  const links = useAsync(() => backendApi.channelProfileLinks(), []);
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-xs text-slate-500">
+        A permanent link for each channel&apos;s profile or bio. Each click is credited to the campaign active on that channel at the time
+        (one active campaign per channel), so you never have to edit the profile when campaigns change.
+      </p>
+      <ErrorNote message={links.error} />
+      {links.loading ? <Spinner /> : (
+        <div className="divide-y divide-slate-100 dark:divide-white/5">
+          {channels.map((c) => (
+            <ProfileLinkRow
+              key={c.channelId}
+              channel={c}
+              link={links.data?.find((l) => l.channelId === c.channelId && l.active) ?? null}
+              campaigns={campaigns}
+              onCreated={links.reload}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfileLinkRow({ channel, link, campaigns, onCreated }: { channel: Channel; link: AttributionLink | null; campaigns: Campaign[]; onCreated: () => void }) {
+  const [vanity, setVanity] = useState(channel.channelType.toLowerCase());
+  const [error, setError] = useState<string | null>(null);
+  const clicks = useAsync(
+    () => (link ? backendApi.linkClicksByCampaign(link.attributionLinkId) : Promise.resolve([])),
+    [link?.attributionLinkId],
+  );
+  const campaignName = (id: string | null) =>
+    id ? campaigns.find((c) => c.campaignId === id)?.name ?? id : 'No active campaign';
+
+  async function create() {
+    setError(null);
+    try {
+      await backendApi.createAttributionLink({
+        scope: 'CHANNEL',
+        channelId: channel.channelId,
+        vanityPath: vanity.trim() || null,
+        destinationUrl: 'https://10doors.io',
+      });
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return (
+    <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{channel.name}</span>
+        <Badge>{channel.channelType}</Badge>
+        {link && <span className="text-xs text-slate-500">{link.clickCount} clicks</span>}
+      </div>
+      {link ? (
+        <>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 truncate rounded bg-slate-50 px-2 py-1 font-mono text-xs dark:bg-black/30" title={link.trackedUrl}>{link.trackedUrl}</code>
+            <CopyButton text={link.trackedUrl} />
+          </div>
+          {clicks.data && clicks.data.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {clicks.data.map((c) => (
+                <Badge key={c.campaignId ?? 'none'} tone={c.campaignId ? 'info' : 'default'}>{campaignName(c.campaignId)}: {c.clicks}</Badge>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-1">
+            <span className="shrink-0 text-xs text-slate-500">10doors.io/go/</span>
+            <input className={inputClass} placeholder="threads" value={vanity} onChange={(e) => setVanity(e.target.value)} />
+          </div>
+          <Button onClick={create}>Create profile link</Button>
+        </div>
+      )}
+      <ErrorNote message={error} />
+    </div>
   );
 }
 
@@ -185,7 +289,7 @@ function CampaignLinks({ campaigns }: { campaigns: Campaign[] }) {
 
   return (
     <div className="space-y-3 text-sm">
-      <p className="text-xs text-slate-500">Reusable links for placements that cannot hold a per-post link (Instagram bio, link-in-bio, spoken or typed vanity URL). Per-post links are minted automatically when a publication is created.</p>
+      <p className="text-xs text-slate-500">One-off vanity links for a single campaign (e.g. a spoken or printed URL). For a channel&apos;s profile or bio, use Profile links instead. Per-post links are minted automatically when a publication is created.</p>
       <select className={inputClass} value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
         {campaigns.map((c) => <option key={c.campaignId} value={c.campaignId}>{c.name}</option>)}
       </select>
