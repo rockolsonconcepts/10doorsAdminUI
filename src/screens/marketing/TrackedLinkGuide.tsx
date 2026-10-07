@@ -8,7 +8,7 @@ import { Badge, Button, Spinner } from '@/components/ui';
 interface Placement {
   title: string;
   steps: string[];
-  /** Which link to paste: the per-post link, or a reusable campaign (bio) link. */
+  /** Which link to paste: the per-post link, or a reusable profile / campaign (bio) link. */
   uses: 'post' | 'campaign';
 }
 
@@ -34,9 +34,12 @@ const PLACEMENTS: Record<string, Placement[]> = {
       ],
     },
     {
-      title: 'Threads bio',
+      title: 'Threads profile',
       uses: 'campaign',
-      steps: ['Use the campaign link (above) in your profile bio and say "link in bio" in the post.'],
+      steps: [
+        'Put the profile link (above) in your Threads profile once and leave it there. Clicks are credited to whichever campaign is active on Threads at the time.',
+        'Say "link in bio" in the post.',
+      ],
     },
   ],
   INSTAGRAM: [
@@ -128,12 +131,14 @@ export function TrackedLinkGuide({ publication, channel }: { publication: Public
     () => (publication.campaignId ? backendApi.campaignLinks(publication.campaignId) : Promise.resolve([] as AttributionLink[])),
     [publication.campaignId],
   );
+  const profileLinks = useAsync(() => backendApi.channelProfileLinks(), []);
 
   const channelType = channel?.channelType ?? '';
   const placements = PLACEMENTS[channelType] ?? FALLBACK;
   const campaignLink = campaignLinks.data?.find((l) => l.scope === 'CAMPAIGN' && l.active) ?? null;
+  const profileLink = profileLinks.data?.find((l) => l.channelId === publication.channelId && l.active) ?? null;
 
-  if (postLink.loading || campaignLinks.loading) return <Spinner label="Loading tracked link…" />;
+  if (postLink.loading || campaignLinks.loading || profileLinks.loading) return <Spinner label="Loading tracked link…" />;
 
   return (
     <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-500/30 dark:bg-blue-500/5">
@@ -143,18 +148,22 @@ export function TrackedLinkGuide({ publication, channel }: { publication: Public
       </div>
 
       <LinkRow label="This post's link" link={postLink.data ?? null} missing="No per-post link was minted for this publication." />
-      <LinkRow
-        label="Campaign (bio) link"
-        link={campaignLink}
-        missing="No campaign-scoped link yet — create one under Reference Data › Tracked links with a vanity path (e.g. latefees)."
-      />
+      {profileLink ? (
+        <LinkRow label={`${channel?.name ?? 'Channel'} profile link`} link={profileLink} />
+      ) : (
+        <LinkRow
+          label="Campaign (bio) link"
+          link={campaignLink}
+          missing="No profile link for this channel yet — create one under Reference Data › Profile links (e.g. /go/threads)."
+        />
+      )}
 
       <div className="space-y-2">
         {placements.map((p) => (
           <div key={p.title} className="rounded-md bg-white/70 p-2 dark:bg-white/5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
               {p.title}
-              <Badge tone={p.uses === 'post' ? 'good' : 'warn'}>{p.uses === 'post' ? "use this post's link" : 'use campaign link'}</Badge>
+              <Badge tone={p.uses === 'post' ? 'good' : 'warn'}>{p.uses === 'post' ? "use this post's link" : profileLink ? 'use profile link' : 'use campaign link'}</Badge>
             </div>
             <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-xs text-slate-700 dark:text-slate-200">
               {p.steps.map((s) => <li key={s}>{s}</li>)}
@@ -165,20 +174,24 @@ export function TrackedLinkGuide({ publication, channel }: { publication: Public
 
       <p className="text-xs text-slate-500">
         The URL already carries the code — visitors are redirected to the landing page with <code>?ref=…</code> and UTM parameters, and
-        registrations plus paid subscriptions are attributed back to this post/campaign. Never type the code into the post by itself.
+        registrations plus paid subscriptions are attributed back to this post/campaign{profileLink ? ' (for the profile link: the campaign active on the channel when they clicked)' : ''}. Never type the code into the post by itself.
       </p>
     </div>
   );
 }
 
-function LinkRow({ label, link, missing }: { label: string; link: AttributionLink | null; missing: string }) {
+export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  if (!link) return <div className="text-xs text-slate-500"><span className="font-medium text-slate-600 dark:text-slate-300">{label}:</span> {missing}</div>;
   const copy = async () => {
-    await navigator.clipboard.writeText(link.trackedUrl);
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+  return <Button variant="secondary" onClick={copy}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy'}</Button>;
+}
+
+function LinkRow({ label, link, missing = '' }: { label: string; link: AttributionLink | null; missing?: string }) {
+  if (!link) return <div className="text-xs text-slate-500"><span className="font-medium text-slate-600 dark:text-slate-300">{label}:</span> {missing}</div>;
   return (
     <div>
       <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -188,7 +201,7 @@ function LinkRow({ label, link, missing }: { label: string; link: AttributionLin
       </div>
       <div className="mt-0.5 flex items-center gap-2">
         <code className="flex-1 truncate rounded bg-white px-2 py-1 font-mono text-xs dark:bg-black/30" title={link.trackedUrl}>{link.trackedUrl}</code>
-        <Button variant="secondary" onClick={copy}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy'}</Button>
+        <CopyButton text={link.trackedUrl} />
       </div>
     </div>
   );

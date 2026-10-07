@@ -7,7 +7,7 @@ import {
   PagedResponse, ScreeningDomainPolicy, ScreeningEmailDomainRuleType, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
-  AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
+  AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, CampaignClickCount, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
   DiagnosticIntegration, ListeningObservation, MarketingInsight,
   MarketingObjective, ObservationStatus, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
@@ -209,6 +209,9 @@ class BackendApi {
   attributionLink = (attributionLinkId: string) => this.get<AttributionLink>(`/v1/marketing/attribution/links/${attributionLinkId}`);
   campaignLinks = (campaignId: string) => this.get<AttributionLink[]>('/v1/marketing/attribution/links', { campaignId });
   createAttributionLink = (link: Partial<AttributionLink>) => this.post<AttributionLink>('/v1/marketing/attribution/links', link);
+  channelProfileLinks = () => this.get<AttributionLink[]>('/v1/marketing/attribution/links', { scope: 'CHANNEL' });
+  linkClicksByCampaign = (attributionLinkId: string) =>
+    this.get<CampaignClickCount[]>(`/v1/marketing/attribution/links/${attributionLinkId}/clicks`);
 
   objectives = () => this.get<MarketingObjective[]>('/v1/marketing/objectives');
   segments = () => this.get<AudienceSegment[]>('/v1/marketing/segments');

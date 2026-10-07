@@ -169,9 +169,15 @@ redirect (`GET /go/{slug}`) or by the landing page's `/go/{slug}` route calling
 registration, and Stripe lifecycle events add `TRIAL_STARTED` / `SUBSCRIPTION_STARTED`, so a
 post can be followed through to paid users.
 
-For channels that don't allow a link per post, create a **campaign link** from the
-Publications screen (campaign-scoped, optional vanity path such as `/go/latefees`) and use it
-as the bio link for the campaign's duration. One URL form per published link — don't share
+For channels where you don't put a link in each post (Threads, Instagram), create the
+channel's **profile link** under Reference Data › Profile links (e.g. `/go/threads`) and put it
+in the profile once. Each click is credited to the campaign active on that channel at click
+time, and the Profile links card shows clicks per campaign. A channel runs one active campaign
+at a time: activating a second campaign on the same channel is rejected until the first is
+paused. The Publish guide shows the channel's profile link next to the per-post link.
+
+**Campaign links** (Reference Data › Tracked links, campaign-scoped, optional vanity path such
+as `/go/latefees`) are still available for one-off campaign URLs. One URL form per published link — don't share
 both the redirect URL and the landing-page URL for the same post or clicks double-count.
 
 ### Content Charter
