@@ -64,7 +64,7 @@ in `PENDING_REVIEW`. The console is where you approve them and close the loop.
 Observe (every 30 min)  metrics snapshot: business, GA4, engagement, conversions
 Plan    (daily 06:00)   situation brief -> LLM -> ContentIdea proposals   -> queue
 Create  (on approval)   idea + charter + audience -> LLM -> ContentAsset  -> queue
-Publish (on approval)   guard checks -> ChannelAdapter -> Publication
+Publish (on approval)   posting limits -> ChannelAdapter -> Publication
 Learn   (Mon 07:00)     experiments/conversions -> MarketingInsight, StrategyRule -> queue
 ```
 
@@ -97,7 +97,11 @@ Do these once, in order, before enabling the agent. Skipping steps 2–4 produce
    way to teach the agent; encode recurring reasons into the Content Charter (below).
    - Approving `CREATE_IDEA` triggers drafting on the next execute tick (every 5 min).
    - Approving `CREATE_CONTENT` proposes a `PUBLISH` action.
-   - Approving `PUBLISH` runs the guards and hands the post to the channel adapter.
+   - Approving `PUBLISH` hands the post to the channel adapter. Posting limits (channel
+     `maxPostsPerDay`, per-location caps, blocked locations, promotional share) are checked only
+     at that moment and only for channels the agent posts to itself; they never hide a draft or
+     publish proposal from review. Manual-posting channels skip them. Only posts that actually
+     went out count towards the caps.
 3. **Publications** – with the manual adapter (the only one today) an approved publication
    lands here as `SCHEDULED`. Select it, copy the drafted title/hook/body/CTA, and follow the
    **How to use this link** panel: it shows the full tracked URL (`…/go/{code}`) and
@@ -179,7 +183,7 @@ The persisted editorial brief that is injected into every LLM call and enforced 
 - **Banned phrases** – one per line; any draft containing one is blocked before review.
 - **Good / bad example** – shown to the model as calibration.
 - **Max promotional share** – percent of a channel's trailing-7-day posts that may be `PROMOTE`;
-  the guard blocks a promotional publication that would exceed it.
+  the guard blocks an automated promotional post that would exceed it (manual channels are not checked).
 - **Max product mentions** – how many times a non-`PROMOTE` draft may name the product.
 
 Until you save, the screen shows the built-in defaults (20% promotional, 1 mention). Edit the
