@@ -7,9 +7,9 @@ import {
   PagedResponse, ScreeningDomainPolicy, ScreeningEmailDomainRuleType, SystemStatus, TracedError, TracedErrorSummary,
 } from '@/model/admin';
 import {
-  AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, CampaignClickCount, Channel, ConnectionTestResponse, ContentAsset, ContentCharter,
+  AgentAction, AgentStepName, AgentStepStatus, AssetTextUpdate, AttributionLink, AudienceSegment, Campaign, CampaignClickCount, Channel, ConnectionTestResponse, ContentAsset, EngagementMetric, ContentCharter,
   DiagnosticIntegration, ListeningObservation, MarketingInsight,
-  MarketingObjective, ObservationStatus, Publication, PublicationStatus, StrategyRule,
+  MarketingObjective, ObservationStatus, OperatorPostInput, Publication, PublicationStatus, StrategyRule,
 } from '@/model/marketing';
 
 export interface ApiError {
@@ -206,6 +206,12 @@ class BackendApi {
   asset = (assetId: string) => this.get<ContentAsset>(`/v1/marketing/assets/${assetId}`);
   updateAssetText = (assetId: string, body: AssetTextUpdate) =>
     this.put<ContentAsset>(`/v1/marketing/assets/${assetId}/text`, body);
+  setAssetVoiceExemplar = (assetId: string, useAsVoiceExemplar: boolean) =>
+    this.put<ContentAsset>(`/v1/marketing/assets/${assetId}/voice-exemplar`, { useAsVoiceExemplar });
+  logOperatorPost = (body: OperatorPostInput) => this.post<Publication>('/v1/marketing/publications/operator-posts', body);
+  publicationMetrics = (publicationId: string) => this.get<EngagementMetric[]>(`/v1/marketing/publications/${publicationId}/metrics`);
+  recordPublicationMetric = (publicationId: string, metric: EngagementMetric) =>
+    this.post<EngagementMetric>(`/v1/marketing/publications/${publicationId}/metrics`, metric);
   attributionLink = (attributionLinkId: string) => this.get<AttributionLink>(`/v1/marketing/attribution/links/${attributionLinkId}`);
   campaignLinks = (campaignId: string) => this.get<AttributionLink[]>('/v1/marketing/attribution/links', { campaignId });
   createAttributionLink = (link: Partial<AttributionLink>) => this.post<AttributionLink>('/v1/marketing/attribution/links', link);

@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Channel, ListeningObservation, ObservationStatus, Sentiment } from '@/model/marketing';
+import { CHANNEL_TYPES, Channel, ListeningObservation, ObservationStatus, Sentiment } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 
 const STATUSES: ObservationStatus[] = ['NEW', 'REVIEWED', 'ACTIONED', 'IGNORED'];
 const SENTIMENTS: Sentiment[] = ['NEUTRAL', 'NEGATIVE', 'POSITIVE', 'MIXED'];
-const CHANNEL_TYPES = ['REDDIT', 'THREADS', 'INSTAGRAM', 'X', 'FACEBOOK', 'LINKEDIN', 'BLOG', 'EMAIL', 'SEO', 'YOUTUBE', 'TIKTOK'];
 
 const statusTone: Record<ObservationStatus, 'default' | 'good' | 'warn' | 'info'> = {
   NEW: 'info',
