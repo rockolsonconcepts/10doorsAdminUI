@@ -28,7 +28,7 @@ export function PublicationsScreen() {
         title="Publications"
         subtitle="Approved content waiting to be posted (manual channel) and what has already gone out"
         actions={<>
-          <Button onClick={() => { setLogging(true); setSelected(null); }}><PenLine className="h-4 w-4" /> <span className="sm:hidden">Log a post</span><span className="hidden sm:inline">Log a post I published</span></Button>
+          <Button className="whitespace-nowrap" onClick={() => { setLogging(true); setSelected(null); }}><PenLine className="h-4 w-4" /> <span className="sm:hidden">Log a post</span><span className="hidden sm:inline">Log a post I published</span></Button>
           <Button variant="secondary" onClick={list.reload}><RefreshCw className="h-4 w-4" /> Refresh</Button>
         </>}
       />
