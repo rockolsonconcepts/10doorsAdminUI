@@ -65,16 +65,24 @@ export function ActionCard({ action: a, channels, onReviewed }: { action: AgentA
         <span>proposed {formatRelative(a.createdAtMillis)}{a.modelUsed ? ` · ${a.modelUsed}` : ''}{a.campaignId ? ` · campaign ${a.campaignId.slice(0, 8)}` : ''}</span>
       </div>
       {a.rationale && <p className="mb-3 text-sm"><span className="font-medium">Why: </span>{a.rationale}</p>}
-      {a.guardReason && <p className="mb-3 text-sm text-amber-700 dark:text-amber-300"><span className="font-medium">Guard: </span>{a.guardReason}</p>}
+      {routingReason(a.guardReason) && <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">Why it's here: {routingReason(a.guardReason)}</p>}
       <ProposedPayload action={a} channels={channels} />
       <ErrorNote message={error} />
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input className={inputClass} placeholder="Feedback for the agent (optional) — read by future plans, drafts and Learn" value={note} onChange={(e) => setNote(e.target.value)} />
-        <Button disabled={busy} onClick={() => review(true)}><Check className="h-4 w-4" /> Approve</Button>
-        <Button variant="danger" disabled={busy} onClick={() => review(false)}><X className="h-4 w-4" /> Reject</Button>
+        <div className="flex shrink-0 gap-2">
+          <Button disabled={busy} onClick={() => review(true)}><Check className="h-4 w-4" /> Approve</Button>
+          <Button variant="danger" disabled={busy} onClick={() => review(false)}><X className="h-4 w-4" /> Reject</Button>
+        </div>
       </div>
     </div>
   );
+}
+
+/** The guard's fallback verdict applies to every queued item, so only rule-specific routing is worth showing. */
+function routingReason(reason: string | null): string | null {
+  if (!reason || reason.startsWith('Default:')) return null;
+  return reason;
 }
 
 const TEXT_FIELDS = ['intent', 'contentType', 'title', 'topic', 'angle', 'hook', 'hypothesis', 'statement', 'name', 'condition', 'action', 'body', 'callToAction', 'mediaPrompt', 'targetLocation', 'targetChannelType', 'proposedType', 'field', 'proposedText', 'evidence'];
@@ -103,7 +111,9 @@ function ProposedPayload({ action, channels }: { action: AgentAction; channels: 
       rows.push({ label: k, value: v.map((x) => (k === 'channelIds' ? channelName(x) : String(x))).join(', ') });
     }
   }
-  if (rows.length === 0) return <Code>{prettyJson(action.proposedPayload)}</Code>;
+  const assetId = typeof parsed.contentAssetId === 'string' && typeof parsed.body !== 'string' ? parsed.contentAssetId : null;
+  const trackedUrl = typeof parsed.trackedUrl === 'string' && parsed.trackedUrl.trim() !== '' ? parsed.trackedUrl : null;
+  if (rows.length === 0 && !assetId && !trackedUrl) return <Code>{prettyJson(action.proposedPayload)}</Code>;
   return (
     <div className="space-y-2">
       {action.actionType === 'UPDATE_CHARTER' && (
@@ -112,15 +122,44 @@ function ProposedPayload({ action, channels }: { action: AgentAction; channels: 
           Approving replaces the named charter field with the proposed text (banned phrases are appended); rejecting leaves the charter unchanged.
         </p>
       )}
-      <dl className="grid grid-cols-[9rem_1fr] gap-y-1 text-sm">
+      <dl className="grid grid-cols-[6rem_1fr] gap-y-1 sm:grid-cols-[9rem_1fr] text-sm">
         {rows.map((r) => (
           <FieldRow key={r.label} label={r.label} value={r.value} long={r.body} />
         ))}
+        {trackedUrl && (
+          <>
+            <dt className="text-slate-500">Link</dt>
+            <dd className="min-w-0 break-all"><a href={trackedUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline dark:text-blue-400">{trackedUrl}</a></dd>
+          </>
+        )}
       </dl>
+      {assetId && <AssetPreview assetId={assetId} />}
       <details className="text-xs">
         <summary className="cursor-pointer text-slate-500">Raw payload</summary>
         <Code>{prettyJson(action.proposedPayload)}</Code>
       </details>
+    </div>
+  );
+}
+
+/** Publish payloads only reference the asset; load it so the reviewer sees the post being scheduled. */
+function AssetPreview({ assetId }: { assetId: string }) {
+  const asset = useAsync(() => backendApi.asset(assetId), [assetId]);
+  if (asset.loading && !asset.data) return <Spinner label="Loading post…" />;
+  if (asset.error) return <ErrorNote message={`Couldn't load the post: ${asset.error}`} />;
+  const a = asset.data;
+  if (!a) return null;
+  const rows = ([['title', a.title], ['hook', a.hook], ['body', a.body], ['callToAction', a.callToAction]] as const)
+    .filter(([, v]) => typeof v === 'string' && v.trim() !== '');
+  if (rows.length === 0) return <p className="text-sm text-slate-500">This post has no text yet.</p>;
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Post to be scheduled</p>
+      <dl className="grid grid-cols-[6rem_1fr] gap-y-1 sm:grid-cols-[9rem_1fr] text-sm">
+        {rows.map(([label, value]) => (
+          <FieldRow key={label} label={label} value={value as string} long={label === 'body'} />
+        ))}
+      </dl>
     </div>
   );
 }
