@@ -109,6 +109,16 @@ Do these once, in order, before enabling the agent. Skipping steps 2–4 produce
    link-in-bio + "link in bio" in the caption; Instagram story: link sticker). Post it yourself,
    then **Record result** with the live URL / external id and status `PUBLISHED` (or `FAILED`
    with a reason). Recording the result is what lets engagement and conversions be attributed.
+   - **Log a post I published** (top of the page) adds a post you wrote and posted yourself, on
+     any channel (Threads, BiggerPockets, …): channel, campaign (defaults to the channel's
+     active one), the live URL, the date and the text. It is saved as `PUBLISHED` with the
+     content marked `origin = OPERATOR`, so Learn compares it with the agent's posts and Plan's
+     duplicate check won't re-pitch its topic. **Use as voice example** (on by default, can be
+     changed later on the post) decides whether Plan and Draft also use it as an example of your
+     voice.
+   - **Engagement** on any published post: copy views, likes/upvotes, replies, reposts and saves
+     from the platform. Each save is a snapshot; Learn and the voice-example ranking read the
+     latest. The engagement rate is worked out from views when you don't enter one.
 4. **Agent Activity** – audit log of every tick and action, including LLM-free ones, with
    model, tokens, guard decisions and failure reasons. Check it when the queue is unexpectedly
    empty ("why did it do nothing" is logged too) and to watch token spend against

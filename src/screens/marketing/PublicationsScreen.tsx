@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import { ExternalLink, PenLine, RefreshCw } from 'lucide-react';
 import { backendApi } from '@/integration/backendapi';
 import { useAsync } from '@/hooks/useAsync';
-import { Channel, ContentAsset, Publication, PublicationStatus } from '@/model/marketing';
+import { Channel, ContentAsset, EngagementMetric, Publication, PublicationStatus } from '@/model/marketing';
 import { Badge, Button, Card, Empty, ErrorNote, PageHeader, Spinner, Table, inputClass } from '@/components/ui';
 import { formatRelative } from '@/lib/format';
 import { TrackedLinkGuide } from './TrackedLinkGuide';
+import { LogPostForm } from './LogPostForm';
 
 const STATUSES: PublicationStatus[] = ['PENDING', 'SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'FAILED', 'CANCELLED'];
 const STATUS_LABEL: Partial<Record<PublicationStatus, string>> = { CANCELLED: 'BLOCKED / CANCELLED' };
@@ -18,6 +19,7 @@ export function PublicationsScreen() {
   const list = useAsync(() => backendApi.publications(status), [status]);
   const channels = useAsync(() => backendApi.channels(), []);
   const [selected, setSelected] = useState<Publication | null>(null);
+  const [logging, setLogging] = useState(false);
   const channelFor = (channelId: string | null) => channels.data?.find((c) => c.channelId === channelId) ?? null;
 
   return (
@@ -25,11 +27,14 @@ export function PublicationsScreen() {
       <PageHeader
         title="Publications"
         subtitle="Approved content waiting to be posted (manual channel) and what has already gone out"
-        actions={<Button variant="secondary" onClick={list.reload}><RefreshCw className="h-4 w-4" /> Refresh</Button>}
+        actions={<>
+          <Button className="whitespace-nowrap" onClick={() => { setLogging(true); setSelected(null); }}><PenLine className="h-4 w-4" /> <span className="sm:hidden">Log a post</span><span className="hidden sm:inline">Log a post I published</span></Button>
+          <Button variant="secondary" onClick={list.reload}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+        </>}
       />
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {STATUSES.map((s) => (
-          <Button key={s} variant={s === status ? 'primary' : 'secondary'} onClick={() => { setStatus(s); setSelected(null); }}>{STATUS_LABEL[s] ?? s}</Button>
+          <Button key={s} variant={s === status ? 'primary' : 'secondary'} onClick={() => { setStatus(s); setSelected(null); setLogging(false); }}>{STATUS_LABEL[s] ?? s}</Button>
         ))}
       </div>
       {STATUS_HINT[status] && <p className="mb-4 text-sm text-slate-500">{STATUS_HINT[status]}</p>}
@@ -39,7 +44,7 @@ export function PublicationsScreen() {
           {list.loading && !list.data ? <Spinner /> : !list.data?.length ? <Empty>No {status.toLowerCase()} publications.</Empty> : (
             <Table head={<><th>Target</th><th>Status</th><th>Created</th><th>Link</th></>}>
               {list.data.map((p) => (
-                <tr key={p.publicationId} className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 ${selected?.publicationId === p.publicationId ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} onClick={() => setSelected(p)}>
+                <tr key={p.publicationId} className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 ${selected?.publicationId === p.publicationId ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} onClick={() => { setSelected(p); setLogging(false); }}>
                   <td>
                     <div>{p.targetLocation ?? '—'}</div>
                     <div className="text-xs text-slate-500">{channelFor(p.channelId)?.name ?? p.channelId?.slice(0, 8)} · <span className="font-mono">{p.publicationId.slice(0, 8)}</span></div>
@@ -53,8 +58,14 @@ export function PublicationsScreen() {
             </Table>
           )}
         </Card>
-        <Card title="Post it">
-          {selected ? <PublicationDetail publication={selected} channel={channelFor(selected.channelId)} onSaved={() => { setSelected(null); list.reload(); }} /> : <Empty>Select a publication to see the content and record the result.</Empty>}
+        <Card title={logging ? 'Log a post you published yourself' : 'Post it'}>
+          {logging ? (
+            <LogPostForm
+              channels={channels.data ?? []}
+              onCancel={() => setLogging(false)}
+              onSaved={(p) => { setLogging(false); setStatus('PUBLISHED'); setSelected(p); list.reload(); }}
+            />
+          ) : selected ? <PublicationDetail publication={selected} channel={channelFor(selected.channelId)} onSaved={() => { setSelected(null); list.reload(); }} /> : <Empty>Select a publication to see the content and record the result.</Empty>}
         </Card>
       </div>
     </>
@@ -97,7 +108,9 @@ export function PublicationDetail({ publication, channel, onSaved }: { publicati
       {asset.loading ? <Spinner label="Loading content…" /> : asset.data && (
         <AssetEditor asset={asset.data} locked={publication.publicationStatus === 'PUBLISHED'} onSaved={asset.reload} />
       )}
-      <TrackedLinkGuide publication={publication} channel={channel} />
+      {asset.data?.origin === 'OPERATOR' && <VoiceExampleToggle asset={asset.data} onSaved={asset.reload} />}
+      {publication.publicationStatus === 'PUBLISHED' && <EngagementEntry publicationId={publication.publicationId} />}
+      {asset.data?.origin !== 'OPERATOR' && <TrackedLinkGuide publication={publication} channel={channel} />}
       {publication.publicationStatus === 'CANCELLED' && (
         <p className="text-sm text-slate-500">Cancelled by the policy guard, so no PUBLISH action was queued. If you posted it anyway, record the URL below so Learn can pick it up.</p>
       )}
@@ -224,6 +237,7 @@ function AssetEditor({ asset, locked, onSaved }: { asset: ContentAsset; locked: 
  * light edits and untouched posts only count as implicit approval of the agent's voice if they go on to get clicks/signups.
  */
 function rewriteLabel(asset: ContentAsset): { text: string; light: boolean } | null {
+  if (asset.origin === 'OPERATOR') return { text: 'written by you', light: !asset.useAsVoiceExemplar };
   if (asset.editedAtMillis <= 0) return null;
   const pct = Math.round((asset.rewriteShare ?? 0) * 100);
   if (pct <= 15) return { text: `light edit · ${pct}% rewritten`, light: true };
@@ -238,6 +252,107 @@ function OriginalText({ asset }: { asset: ContentAsset }) {
       {asset.originalHook && <div className="italic">{asset.originalHook}</div>}
       <div className="whitespace-pre-wrap">{asset.originalBody}</div>
       {asset.originalCallToAction && <div className="mt-1 font-medium">{asset.originalCallToAction}</div>}
+    </div>
+  );
+}
+
+function VoiceExampleToggle({ asset, onSaved }: { asset: ContentAsset; onSaved: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(use: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      await backendApi.setAssetVoiceExemplar(asset.contentAssetId, use);
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-0.5" checked={asset.useAsVoiceExemplar} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
+        <span>
+          <span className="font-medium">Use as voice example</span>
+          <span className="block text-xs text-slate-500">When on, Plan and Draft use this post as an example of how you write. Learn and the duplicate check use it either way.</span>
+        </span>
+      </label>
+      <ErrorNote message={error} />
+    </div>
+  );
+}
+
+const METRIC_FIELDS: { key: keyof EngagementMetric; label: string }[] = [
+  { key: 'impressions', label: 'Views' },
+  { key: 'likes', label: 'Likes / upvotes' },
+  { key: 'comments', label: 'Replies / comments' },
+  { key: 'shares', label: 'Reposts / shares' },
+  { key: 'saves', label: 'Saves' },
+];
+
+/** Numbers copied from the platform by hand. Each save is a new snapshot; Learn and the voice ranking read the latest. */
+function EngagementEntry({ publicationId }: { publicationId: string }) {
+  const metrics = useAsync(() => backendApi.publicationMetrics(publicationId), [publicationId]);
+  const latest = metrics.data?.length ? metrics.data[metrics.data.length - 1] : null;
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const f of METRIC_FIELDS) {
+      const v = latest?.[f.key];
+      next[f.key] = v == null ? '' : String(v);
+    }
+    setValues(next);
+  }, [latest]);
+
+  const filled = METRIC_FIELDS.some((f) => values[f.key]?.trim());
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    try {
+      const body: EngagementMetric = {};
+      for (const f of METRIC_FIELDS) {
+        const raw = values[f.key]?.trim();
+        if (raw) (body as Record<string, number>)[f.key] = Math.max(0, Math.round(Number(raw)));
+      }
+      await backendApi.recordPublicationMetric(publicationId, body);
+      metrics.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium">Engagement</span>
+        {latest?.measuredAtMillis ? <span className="text-xs text-slate-500">Last updated {formatRelative(latest.measuredAtMillis)}{latest.engagementRate != null && <> · {(latest.engagementRate * 100).toFixed(1)}% engagement</>}</span> : null}
+      </div>
+      {metrics.loading && !metrics.data ? <Spinner /> : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {METRIC_FIELDS.map((f) => (
+            <label key={f.key} className="block text-xs text-slate-500">{f.label}
+              <input className={`${inputClass} mt-1`} type="number" min={0} inputMode="numeric" value={values[f.key] ?? ''}
+                onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} />
+            </label>
+          ))}
+        </div>
+      )}
+      <ErrorNote message={error ?? metrics.error} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={busy || !filled} onClick={save}>{busy ? 'Saving…' : latest ? 'Update numbers' : 'Save numbers'}</Button>
+        <span className="text-xs text-slate-500">Copy these from the post on the platform. Fill in what the channel shows; leave the rest blank.</span>
+      </div>
     </div>
   );
 }

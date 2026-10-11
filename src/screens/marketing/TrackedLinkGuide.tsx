@@ -106,6 +106,21 @@ const PLACEMENTS: Record<string, Placement[]> = {
       steps: ['Use the campaign link (above) for evergreen spots like the About page, welcome email and footer.'],
     },
   ],
+  BIGGERPOCKETS: [
+    {
+      title: 'BiggerPockets forum post or reply',
+      uses: 'post',
+      steps: [
+        'Check the forum\'s self-promotion rules before including any link; many threads only welcome links that directly answer the question.',
+        'If a link fits, paste the full tracked URL in the post body so the click is tracked per post.',
+      ],
+    },
+    {
+      title: 'BiggerPockets profile',
+      uses: 'campaign',
+      steps: ['Put the profile link (above) in your BiggerPockets profile once; clicks go to whichever campaign is active on BiggerPockets at the time.'],
+    },
+  ],
   YOUTUBE: [
     { title: 'YouTube description', uses: 'post', steps: ['Paste the full tracked URL in the video description and pin it as a comment.'] },
   ],

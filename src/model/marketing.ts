@@ -61,7 +61,41 @@ export interface ContentAsset {
   editedBy: string | null;
   /** Share (0..1) of words changed between the agent's version and the current text; null/0 when unedited. */
   rewriteShare: number | null;
+  /** AGENT drafts (null on older rows) or OPERATOR posts you wrote and logged yourself. */
+  origin: 'AGENT' | 'OPERATOR' | null;
+  /** Operator posts only: offered to Plan/Draft/Learn as a voice example. */
+  useAsVoiceExemplar: boolean;
   createdAtMillis: number;
+}
+
+/** A post you wrote and published yourself, logged afterwards. */
+export interface OperatorPostInput {
+  channelId: string;
+  campaignId?: string;
+  targetLocation?: string;
+  title?: string;
+  hook?: string;
+  body: string;
+  callToAction?: string;
+  externalUrl: string;
+  externalPostId?: string;
+  publishedAtMillis?: number;
+  useAsVoiceExemplar: boolean;
+}
+
+/** One engagement snapshot for a publication; the latest one is what Learn and the voice ranking read. */
+export interface EngagementMetric {
+  engagementMetricId?: string;
+  publicationId?: string;
+  measuredAtMillis?: number;
+  impressions?: number | null;
+  likes?: number | null;
+  upvotes?: number | null;
+  comments?: number | null;
+  shares?: number | null;
+  saves?: number | null;
+  linkClicks?: number | null;
+  engagementRate?: number | null;
 }
 
 export interface AssetTextUpdate {
@@ -205,7 +239,7 @@ export interface Campaign {
 }
 
 export const OBJECTIVE_TYPES = ['AWARENESS', 'TRAFFIC', 'ENGAGEMENT', 'REGISTRATION', 'ACTIVATION', 'PAID_CONVERSION', 'RETENTION', 'REVENUE'] as const;
-export const CHANNEL_TYPES = ['REDDIT', 'INSTAGRAM', 'THREADS', 'LINKEDIN', 'X', 'FACEBOOK', 'BLOG', 'SUBSTACK', 'EMAIL', 'SEO', 'YOUTUBE', 'TIKTOK'] as const;
+export const CHANNEL_TYPES = ['REDDIT', 'INSTAGRAM', 'THREADS', 'LINKEDIN', 'X', 'FACEBOOK', 'BLOG', 'SUBSTACK', 'EMAIL', 'SEO', 'YOUTUBE', 'TIKTOK', 'BIGGERPOCKETS'] as const;
 
 export type DiagnosticIntegration = 'openai' | 'google-analytics';
 
